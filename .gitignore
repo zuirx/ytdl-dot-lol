@@ -179,3 +179,15 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+
+TODO_local.md
+ytdl/secret_key.py
+/ytdl-downloads
+/content-mix/
+/content-downloads/
+/staticfiles
+upytdlp-deb.sh
+/content-playlist
+main/templates/main/ads_head.html
+main/templates/main/ads_body.html

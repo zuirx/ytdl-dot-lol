@@ -1,0 +1,472 @@
+{% load static %}
+{% load layout_extras %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Download Web Videos and Music Easily.">
+    <meta name="keywords" content="youtube, download, free, mp4, mp3, yt-dlp">
+    <meta name="robots" content="index, follow">
+    {% safe_include 'main/ads_head.html' %}
+    <link rel="shortcut icon" href="{% static 'ytdl/favicon.ico' %}" type="image/x-icon">
+    <title>ytdl.lol | yt-dlp frontend</title>
+    <style>
+        :root {
+            --bg-body: #0f1115;
+            --bg-card: #1a1d23;
+            --bg-input: #0a0c0f;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #facc15;
+            --accent-hover: #eab308;
+            --border: #2d333b;
+            --danger: #ff5f5f;
+            --font-stack: system-ui, -apple-system, "Segoe UI", Roboto, "Bitstream Vera Sans", "DejaVu Sans", sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-stack);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 80vh;
+            line-height: 1.5;
+        }
+
+        header {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin: 0;
+            letter-spacing: -1px;
+            color: #fff;
+        }
+
+        .formlistyt {
+            padding-top: 50px;
+        }
+
+        .helpad {
+            color: #525861;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .helpad p {
+            color: lightgray;
+            font-size: 8px;
+        }
+
+        .formlistyt button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: normal;
+        }
+        
+        .subtitle a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .gototop {
+            color: white;
+        }
+
+        .main-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            width: 100%;
+            max-width: 650px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .message_sv {
+            color: var(--danger);
+            background: rgba(255, 95, 95, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        .actions-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.5fr 1.5fr;
+            gap: 10px;
+        }
+
+        button {
+            font-family: var(--font-stack);
+            font-weight: 600;
+            cursor: pointer;
+            padding: 7px 10px;
+            border-radius: 6px;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .listlink {
+            color: #faf879;
+        }
+
+        .icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-ghost {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--text-muted);
+            color: #fff;
+        }
+
+        .results-container {
+            width: 100%;
+            max-width: 850px;
+            margin-top: 40px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            border-left: 3px solid var(--accent);
+            padding-left: 10px;
+            margin-bottom: 15px;
+        }
+
+        .scroll-wrapper {
+            overflow-x: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 600px;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            background: #334155;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 40px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        @media (max-width: 500px) {
+            .actions-row { grid-template-columns: 1fr; }
+            .input-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>YTDL.LOL</h1>
+        <div class="subtitle">web content downloader, or just a <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> frontend</div>
+    </header>
+
+    <main class="main-card">
+        {% if messages %}
+            <div class="message_sv">
+                {% for m in messages %}
+                    {{ m }}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="POST" action="{% url 'home_yt' %}">
+            {% csrf_token %}
+            <div class="input-row">
+                <input type="text" name="yt_link" id="yt_link" placeholder="URL" autocomplete="off">
+                <button type="button" class="btn-ghost" onclick="pasteFromClipboard()">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M19,2H14V4H19V18H5V4H10V2H5A2,2 0 0,0 3,4V18A2,2 0 0,0 5,20H19A2,2 0 0,0 21,18V4A2,2 0 0,0 19,2M12,2A2,2 0 0,1 14,4A2,2 0 0,1 12,6A2,2 0 0,1 10,4A2,2 0 0,1 12,2M15,11V13H9V11H15M15,7V9H9V7H15M15,15V17H9V15H15Z"/></svg>
+                    Paste
+                </button>
+            </div>
+            
+            <div class="actions-row">
+                <button type="submit" name="action" value="audio" class="btn-primary">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55a4 4 0 1 0 4 4V7h4V3h-6z" /></svg>
+                    Best Audio
+                </button>
+                <button type="submit" name="action" value="video" class="btn-primary">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/></svg>
+                    Best Video
+                </button>
+                <button type="submit" name="action" value="info" class="btn-ghost">Pull Download Options</button>
+                <button type="submit" name="action" value="playlist" class="btn-secondary">Playlist Downloader</button>
+            </div>
+        </form>
+
+        {% if dl_opts %}
+        <form {% comment %} method="POST" action="{% url 'mix_av' %}" {% endcomment %}>
+            {% csrf_token %}
+            <div class="results-container">
+                <h3>{{ final_url }}</h3>
+                <input type="hidden" name="yt_link" value="{{ final_url }}">
+                
+                    <!-- <button type="submit" name="action" value="audio" class="btn-primary">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55a4 4 0 1 0 4 4V7h4V3h-6z" /></svg>
+                            +
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/></svg>
+                            
+                            Mix and Download selected Audio and Video
+                    </button> -->
+                
+                <h2>Video Options</h2>
+                <div class="scroll-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ext</th>
+                                <th>Res</th>
+                                <th>FPS</th>
+                                <th>Codec</th>
+                                <th>Size</th>
+                                <th>Action</th>
+                                <th>Mix</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for format_id, f in dl_opts.video.items %}
+                            <tr>
+                                <td><span class="badge">{{ f.ext }}</span></td>
+                                <td>{{ f.resolution }}</td>
+                                <td>{{ f.fps }}</td>
+                                <td>{{ f.vcodec|truncatechars:12 }}</td>
+                                <td>{{ f.filesize|default:"?" }}</td>
+                                <td>
+                                    <form method="POST" action="{% url 'dl_from_opt' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" name="action" value="{{ format_id }} - {{ f.url }} - {{ f.ext }}" class="btn-primary" style="padding: 5px 10px; font-size: 0.75rem;">
+                                            Download
+                                        </button>
+                                    </form>
+                                </td>
+                                <td><input type="checkbox" id="{{ format_id }}_vcheck" name="{{ format_id }}_vcheck"></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+    
+                <h2>Audio Options</h2>
+                <div class="scroll-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ext</th>
+                                <th>A-Codec</th>
+                                <th>Size</th>
+                                <th>Action</th>
+                                <th>Mix</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for format_id, f in dl_opts.audio.items %}
+                            <tr>
+                                <td><span class="badge">{{ f.ext }}</span></td>
+                                <td>{{ f.acodec }}</td>
+                                <td>{{ f.filesize|default:"?" }}</td>
+                                <td>
+                                    <form method="POST" action="{% url 'dl_from_opt' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" name="action" value="{{ format_id }} - {{ f.url }} - {{ f.ext }}" class="btn-primary" style="padding: 5px 10px; font-size: 0.75rem;">
+                                            Download
+                                        </button>
+                                    </form>
+                                </td>
+                                <td><input type="checkbox" id="{{ format_id }}_acheck" name="{{ format_id }}_acheck"></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </form>
+        {% endif %}
+    
+        {% if listvid %}
+            <form method="POST" action="{% url 'dl_sel_playlist_yt' %}" class="formlistyt">
+                {% csrf_token %}
+                <div style="display: flex; align-items: center;">
+                    <button type="submit" class="btn-primary" id="buttonzipdl">
+                        Download & ZIP selected as:
+                    </button>
+    
+                    <label>
+                        <input type="radio" id="dlas_audio" name="download_type" value="audio" checked> 
+                        <strong>Audio</strong>
+                    </label>
+                    <label>
+                        <input type="radio" id="dlas_video" name="download_type" value="video"> 
+                        <strong>Video</strong>
+                    </label>
+                </div>
+                
+                <br><br>
+
+                <label>
+                    <input type="checkbox" id="select-all"> <strong>Select All</strong>
+                </label>
+
+                {% for v in listvid %}
+                    <div class="results-container">
+                        <h3><input type="checkbox" id="selected_videos" name="selected_videos" value="{{ v }}" class="video-checkbox"> {{ v|safe }}</h3>
+                    </div>
+                {% endfor %}
+                <a href="#buttonzipdl" class="gototop">^ Go to Top</a>
+            </form>
+        {% endif %}
+
+
+    </main>
+
+    <br><br>
+    
+    <div class="helpad">
+        {% safe_include 'main/ads_body.html' %}
+    </div>
+    
+    <footer>
+        {% if lastup %}
+            <span>last update: {{lastup}} {% if lastuptxt %} "{{lastuptxt}}" {% endif %} {% if lastuptdy %} <span class="alert-up">!</span> {% endif %}</span>
+            |
+        {% endif %}
+        {% if ytdlpver %}
+            <span>yt-dlp version: {{ytdlpver}}</span>
+        {% endif %}
+        
+        <p>by <a href="https://zuirx.com">zuirx</a> (<a href="https://x.com/zuirxriuz" target="_blank" rel="noopener">x/twitter</a>)
+        <!-- | <a href="https://github.com/zuirx/ytdl-django">host your own</a></p> -->
+    </footer>
+
+    <!-- paste button js -->
+    <script>
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById("yt_link").value = text;
+            } catch (err) {
+                console.error("Paste failed", err);
+            }
+        }
+    </script>
+
+    <!-- select all button playlist yt -->
+    <script>
+        const selectAllBox = document.getElementById('select-all');
+        const videoCheckboxes = document.querySelectorAll('.video-checkbox');
+
+        selectAllBox.addEventListener('change', function() {
+            videoCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+
+        videoCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (!this.checked) {
+                    selectAllBox.checked = false;
+                }
+                const allChecked = Array.from(videoCheckboxes).every(c => c.checked);
+                if (allChecked) {
+                    selectAllBox.checked = true;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

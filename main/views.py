@@ -9,7 +9,7 @@ from django.contrib import messages
 DIR_DOWNLOAD = 'content-downloads'
 DIR_MIX = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
-GITREPOLINK = 'https://api.github.com/repos/zuirx/ytdl-django/commits'
+GITREPOLINK = 'https://api.github.com/repos/zuirx/ytdl-dot-lol/commits'
 
 def home_yt(request, subpath=''):
 

@@ -4,7 +4,7 @@ yt-dlp front-end in django
 ## Installation
 - Install Python 3.11.*
 - Clone this repository:
-```git clone https://github.com/zuirx/ytdl-django && cd ytdl-django```
+```git clone https://github.com/zuirx/ytdl-dot-lol && cd ytdl-dot-lol```
 - Create a venv (and enable it):
 ```python -m venv venv```
 - Install requirements.txt:

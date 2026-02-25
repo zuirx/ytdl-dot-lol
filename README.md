@@ -1,4 +1,4 @@
-# ytdl-django - ytdl.lol
+# ytdl-dot-lol
 yt-dlp front-end in django 
 
 ## Installation

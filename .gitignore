@@ -191,3 +191,5 @@ upytdlp-deb.sh
 /content-playlist
 main/templates/main/ads_head.html
 main/templates/main/ads_body.html
+*.vtt
+/.vscode

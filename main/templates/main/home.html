@@ -263,12 +263,62 @@
             .input-row { flex-direction: column; }
         }
     </style>
+
+    <style>
+        /* Container for the dropdown */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* The dropdown menu (hidden by default) */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 200px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 4px;
+            right: 0; /* Aligns menu to the right of the button */
+        }
+
+        /* Style the buttons inside the dropdown */
+        .dropdown-content button {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* Hover effect for buttons inside the dropdown */
+        .dropdown-content button:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Show the dropdown on hover */
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        /* Optional: rotate arrow on hover */
+        .dropdown:hover .dropdown-toggle {
+            background-color: rgba(0,0,0,0.05);
+        }
+    </style>
 </head>
 <body>
 
     <header>
-        <h1>YTDL.LOL</h1>
-        <div class="subtitle">web content downloader, or just a <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> frontend</div>
+        <!-- <h1>YTDL.LOL</h1> -->
+        <img src="{% static 'ytdl/logo.png' %}" alt="ytdl.lol">
+        <div class="subtitle">web content downloader, just a <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> frontend</div>
     </header>
 
     <main class="main-card">
@@ -299,8 +349,16 @@
                     <svg class="icon" viewBox="0 0 24 24"><path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/></svg>
                     Best Video
                 </button>
-                <button type="submit" name="action" value="info" class="btn-ghost">Pull Download Options</button>
-                <button type="submit" name="action" value="playlist" class="btn-secondary">Playlist Downloader</button>
+                <button type="submit" name="action" value="playlist">YT Playlist Downloader</button>
+                <button type="submit" name="action" value="info">Pull Download Options</button>
+                
+                <!-- <div class="dropdown">
+                    <button type="button" class="btn-ghost dropdown-toggle">More Options ▾</button>
+                    <div class="dropdown-content">
+                        <button type="submit" name="action" value="transcript">Transcript</button>
+                        <button type="submit" name="action" value="info">Pull Download Options</button>
+                    </div>
+                </div> -->
             </div>
         </form>
 
@@ -388,6 +446,40 @@
                         </tbody>
                     </table>
                 </div>
+
+                <h2>Subtitles / Transcripts</h2>
+                <div class="scroll-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Lang</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in dl_opts.subtitles %}
+                            <tr>
+                                <td><span class="badge">{{ sub.lang }}</span></td>
+                                <td>{{ sub.name }}</td>
+                                <td>{{ sub.type }}</td>
+                                <td>
+                                    <form method="POST" action="{% url 'dl_from_opt' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" name="action" value="sub:{{ sub.lang }} - {{ sub.url }} - srt" class="btn-primary" style="padding: 5px 10px; font-size: 0.75rem;">
+                                            Download .srt
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not dl_opts.subtitles %}
+                            <tr><td colspan="4" style="color: var(--text-muted); text-align: center; padding: 16px;">No subtitles available for this video.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </form>
         {% endif %}
@@ -435,16 +527,22 @@
     </div>
     
     <footer>
+
+        <p>If you can, help us! Any amount is enough ;)</p>
+        <p>BTC: bc1qxjd9ns9reqjnxw0fk40huqsca74qzlexyprwzu</p>
+        <p>DOGE: D5feuYU6YkfdJh7zcN7SJTCdSFR7yE5pcA</p>
+        <p>LTC: ltc1qg9875h45t57zs9w6pzqfmgqrhwjfm3ezf5dt5z</p>
+        <!-- <p>XMR: </p> -->
         {% if lastup %}
-            <span>last update: {{lastup}} {% if lastuptxt %} "{{lastuptxt}}" {% endif %} {% if lastuptdy %} <span class="alert-up">!</span> {% endif %}</span>
+            <span>Last commit: {{lastup}} {% if lastuptxt %} "{{lastuptxt}}" {% endif %} {% if lastuptdy %} <span class="alert-up">!</span> {% endif %}</span>
             |
         {% endif %}
         {% if ytdlpver %}
             <span>yt-dlp version: {{ytdlpver}}</span>
         {% endif %}
         
-        <p>by <a href="https://zuirx.com">zuirx</a> (<a href="https://x.com/zuirxriuz" target="_blank" rel="noopener">x/twitter</a>)
-        | <a href="https://github.com/zuirx/ytdl-dot-lol">host your own</a></p>
+        <p>by <a href="https://zuirx.com">zuirx</a> (<a href="https://x.com/zuirxriuz" target="_blank" rel="noopener">X Posts</a>)
+        | <a href="https://github.com/zuirx/ytdl-dot-lol">HOST YOUR OWN</a></p>
     </footer>
 
     <!-- paste button js -->

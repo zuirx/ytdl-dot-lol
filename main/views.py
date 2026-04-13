@@ -1,4 +1,4 @@
-import yt_dlp, os, re, random, glob as glob_module, subprocess, logging, requests, zipfile # type: ignore
+import yt_dlp, os, re, random, glob as glob_module, subprocess, logging, requests, zipfile, threading, time, shutil # type: ignore
 from datetime import datetime, timedelta, timezone as tz
 from importlib.metadata import version
 from urllib.parse import urlparse
@@ -13,6 +13,36 @@ DIR_DOWNLOAD = 'content-downloads'
 DIR_MIX      = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
 GITREPOLINK  = 'https://api.github.com/repos/zuirx/ytdl-dot-lol/commits'
+
+# ---------------------------------------------------------------------------
+# File cleanup registry — paths are deleted 1 hour after download
+# ---------------------------------------------------------------------------
+_pending_deletes: dict = {}   # {path: expiry_unix_time}
+_pending_lock = threading.Lock()
+
+def _schedule_delete(path, delay=3600):
+    with _pending_lock:
+        _pending_deletes[path] = time.time() + delay
+
+def _cleanup_loop():
+    while True:
+        time.sleep(60)
+        now = time.time()
+        with _pending_lock:
+            expired = [p for p, t in _pending_deletes.items() if now >= t]
+        for path in expired:
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    os.remove(path)
+                logger.warning("Deleted expired file: %s", path)
+            except OSError:
+                pass
+            with _pending_lock:
+                _pending_deletes.pop(path, None)
+
+threading.Thread(target=_cleanup_loop, daemon=True).start()
 
 
 def home_yt(request, subpath=''):
@@ -84,19 +114,21 @@ def home_yt(request, subpath=''):
                             'url':  url,
                         })
 
-                    for lang_code, formats in info.get('automatic_captions', {}).items():
-                        if not any(f.get('url') for f in formats):
-                            continue
-                        formats_dict['subtitles'].append({
-                            'lang': lang_code,
-                            'name': f"{formats[0].get('name', lang_code)} (Auto)",
-                            'type': 'Auto',
-                            'url':  url,
-                        })
+                    video_lang = info.get('language', '')
+                    auto_captions = info.get('automatic_captions', {})
+                    if video_lang and video_lang in auto_captions:
+                        formats = auto_captions[video_lang]
+                        if any(f.get('url') for f in formats):
+                            formats_dict['subtitles'].append({
+                                'lang': video_lang,
+                                'name': f"{formats[0].get('name', video_lang)} (Auto)",
+                                'type': 'Auto',
+                                'url':  url,
+                            })
 
                     return render(request, 'main/home.html', {
                         'dl_opts':   formats_dict,
-                        'final_url': url,
+                        'final_url': url
                     })
 
                 except Exception as e:
@@ -233,8 +265,13 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
             info = ydl.extract_info(url, download=True)
 
             if type in ('transcript', 'subtitle'):
-                # yt-dlp names subtitle files {stem}.{lang}.srt — find it
-                found = glob_module.glob(os.path.join(output_dir, f'{video_id}*.srt'))
+                subtitle_exts = ('srt', 'vtt', 'ttml', 'srv3', 'srv2', 'srv1', 'json3')
+                found = []
+                for ext in subtitle_exts:
+                    found = glob_module.glob(os.path.join(output_dir, f'{video_id}*.{ext}'))
+                    if found:
+                        filetype = ext
+                        break
                 if found:
                     final_path = found[0]
                 else:
@@ -253,6 +290,7 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
         if noreturn:
             return final_path
 
+        _schedule_delete(final_path)
         return FileResponse(open(final_path, 'rb'), as_attachment=True, filename=f'{video_id}.{filetype}')
 
     except Exception as e:
@@ -335,6 +373,8 @@ def dl_sel_playlist_yt(request):
         zip_path = f'{DIR_PLAYLIST}/Playlist_{num_id}.zip'
         zip_folder(pl_temp_dir, zip_path)
 
+        _schedule_delete(pl_temp_dir)
+        _schedule_delete(zip_path)
         return FileResponse(open(zip_path, 'rb'), as_attachment=True, filename=f'Playlist_{num_id}.zip')
 
     except Exception as e:
@@ -377,4 +417,7 @@ def mix_av(request):
         messages.error(request, f"FFmpeg error: {e.stderr}")
         return redirect('home_yt')
 
+    _schedule_delete(videofile)
+    _schedule_delete(audiofile)
+    _schedule_delete(output_final)
     return FileResponse(open(output_final, 'rb'), as_attachment=True, filename=f'mixed_{random_num}.mp4')

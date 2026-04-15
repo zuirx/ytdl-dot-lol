@@ -230,11 +230,7 @@
     </main>
 
     <br><br>
-    
-    <div class="helpad">
-        {% safe_include 'main/ads_body.html' %}
-    </div>
-    
+       
     <footer>
 
         <div class="donate-card">
@@ -251,6 +247,13 @@
                 <span class="donate-coin">LTC:</span>
                 <code class="donate-addr" id="addr-ltc">ltc1qg9875h45t57zs9w6pzqfmgqrhwjfm3ezf5dt5z</code>
             </div>
+        </div>
+
+        <br>
+
+        <div class="donate-card">
+            <p class="donate-hint">if you can't donate, consider viewing this ad once!</p>
+            {% safe_include 'main/ads_body.html' %}
         </div>
 
         <br>

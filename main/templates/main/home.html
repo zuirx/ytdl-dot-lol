@@ -252,8 +252,11 @@
         <br>
 
         <div class="donate-card">
-            <p class="donate-hint">if you can't donate, consider viewing this ad once!</p>
-            {% safe_include 'main/ads_body.html' %}
+            <div style="text-align: center;">
+                <p class="donate-hint">if you can't donate, consider viewing this ad once, by disabling ad blocker for a moment 🙏</p>
+                <br>
+                {% safe_include 'main/ads_body.html' %}
+            </div>
         </div>
 
         <br>

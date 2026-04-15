@@ -26,7 +26,7 @@ body {
 
 header {
     text-align: center;
-    margin: 40px 0;
+    margin: 30px 0;
 }
 
 h1 {
@@ -55,6 +55,22 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.mix-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 16px 0;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+}
+
+.mix-status {
+    font-size: 0.85rem;
+    color: var(--text-muted);
 }
 
 .scroll-top-btn {
@@ -252,6 +268,96 @@ footer {
 footer a {
     color: var(--accent);
     text-decoration: none;
+}
+
+.donate-card {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    text-align: left;
+    min-width: 320px;
+    max-width: 100%;
+}
+
+.donate-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 2px;
+}
+
+.donate-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.donate-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: var(--accent);
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.donate-hint {
+    margin: 0 0 4px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.donate-address {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+.donate-coin {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 34px;
+    letter-spacing: 0.05em;
+}
+
+.donate-addr {
+    flex: 1;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    word-break: break-all;
+    background: none;
+    font-family: "Courier New", monospace;
+}
+
+.btn-copy {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-copy:hover {
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 @media (max-width: 500px) {

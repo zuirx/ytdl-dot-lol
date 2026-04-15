@@ -44,7 +44,6 @@ def _cleanup_loop():
 
 threading.Thread(target=_cleanup_loop, daemon=True).start()
 
-
 def home_yt(request, subpath=''):
     listvid  = []
     video_id = request.GET.get("v") or request.GET.get("watch")
@@ -242,23 +241,32 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
             'postprocessors':    [{'key': 'FFmpegSubtitlesConvertor', 'format': 'srt'}],
         }
     else:
-        ydl_opts = {
-            'quiet':          True,
-            'format':         dl_format,
-            'outtmpl':        final_path,
-            'writethumbnail': True,
-            'postprocessors': [
-                {'key': 'EmbedThumbnail'},
-                {'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg', 'when': 'before_dl'},
-                {'key': 'FFmpegMetadata', 'add_metadata': True},
-            ],
-        }
-        if type == 'audio':
-            ydl_opts['postprocessors'].insert(0, {
-                'key':              'FFmpegExtractAudio',
-                'preferredcodec':   'mp3',
-                'preferredquality': '192',
-            })
+        if noreturn:
+            # Downloading a raw stream for mixing — use unique filename, skip postprocessing
+            out_stem = filename if filename else video_id
+            ydl_opts = {
+                'quiet':   True,
+                'format':  dl_format,
+                'outtmpl': os.path.join(output_dir, f'{out_stem}.%(ext)s'),
+            }
+        else:
+            ydl_opts = {
+                'quiet':          True,
+                'format':         dl_format,
+                'outtmpl':        final_path,
+                'writethumbnail': True,
+                'postprocessors': [
+                    {'key': 'EmbedThumbnail'},
+                    {'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg', 'when': 'before_dl'},
+                    {'key': 'FFmpegMetadata', 'add_metadata': True},
+                ],
+            }
+            if type == 'audio':
+                ydl_opts['postprocessors'].insert(0, {
+                    'key':              'FFmpegExtractAudio',
+                    'preferredcodec':   'mp3',
+                    'preferredquality': '192',
+                })
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -294,6 +302,8 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
         return FileResponse(open(final_path, 'rb'), as_attachment=True, filename=f'{video_id}.{filetype}')
 
     except Exception as e:
+        if noreturn:
+            raise
         messages.error(request, f"Error: {e}")
         logger.exception("Download failed for %s", url)
         return redirect('home_yt')
@@ -395,9 +405,14 @@ def mix_av(request):
         messages.error(request, "Select exactly one video and one audio track.")
         return redirect('home_yt')
 
-    random_num   = random.randrange(100000, 999999)
-    videofile    = download_yt(request, subpath=url, itag=video_options[0].split('_')[0], noreturn=True, custom_output_dir=DIR_MIX, filename=f'videotomix{random_num}')
-    audiofile    = download_yt(request, subpath=url, itag=audio_options[0].split('_')[0], noreturn=True, custom_output_dir=DIR_MIX, filename=f'audiotomix{random_num}')
+    random_num = random.randrange(100000, 999999)
+    try:
+        videofile = download_yt(request, subpath=url, itag=video_options[0].split('_')[0], noreturn=True, custom_output_dir=DIR_MIX, filename=f'videotomix{random_num}')
+        audiofile = download_yt(request, subpath=url, itag=audio_options[0].split('_')[0], noreturn=True, custom_output_dir=DIR_MIX, filename=f'audiotomix{random_num}')
+    except Exception as e:
+        messages.error(request, f"Download error: {e}")
+        return redirect('home_yt')
+
     output_final = os.path.join(DIR_MIX, f'filefinal_{random_num}.mp4')
 
     command = [

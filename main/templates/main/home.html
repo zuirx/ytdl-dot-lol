@@ -31,7 +31,6 @@
 <body>
 
     <header>
-        <!-- <h1>YTDL.LOL</h1> -->
         <img src="{% static 'ytdl/logo.png' %}" alt="ytdl.lol" id="logo">
         <div class="subtitle">web content downloader, just a <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> frontend</div>
     </header>
@@ -66,31 +65,15 @@
                 </button>
                 <button type="submit" name="action" value="playlist">YT Playlist Downloader</button>
                 <button type="submit" name="action" value="info">Pull Download Options</button>
-                
-                <!-- <div class="dropdown">
-                    <button type="button" class="btn-ghost dropdown-toggle">More Options ▾</button>
-                    <div class="dropdown-content">
-                        <button type="submit" name="action" value="transcript">Transcript</button>
-                        <button type="submit" name="action" value="info">Pull Download Options</button>
-                    </div>
-                </div> -->
             </div>
         </form>
 
         {% if dl_opts %}
-        <form {% comment %} method="POST" action="{% url 'mix_av' %}" {% endcomment %}>
+        <form method="POST" action="{% url 'mix_av' %}" id="mix-form">
             {% csrf_token %}
             <div class="results-container">
                 <h3>{{ final_url }}</h3>
                 <input type="hidden" name="yt_link" value="{{ final_url }}">
-                
-                    <!-- <button type="submit" name="action" value="audio" class="btn-primary">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55a4 4 0 1 0 4 4V7h4V3h-6z" /></svg>
-                            +
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/></svg>
-                            
-                            Mix and Download selected Audio and Video
-                    </button> -->
                 
                 <h2>Video Options</h2>
                 <div class="scroll-wrapper">
@@ -160,6 +143,16 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+
+                <div class="mix-bar">
+                    <button type="button" class="btn-primary" id="mix-btn" onclick="submitMix()">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55a4 4 0 1 0 4 4V7h4V3h-6z" /></svg>
+                        +
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/></svg>
+                        Mix &amp; Download
+                    </button>
+                    <span class="mix-status" id="mix-status">Select 1 video and 1 audio from the tables above.</span>
                 </div>
 
                 <h2>Subtitles / Transcripts</h2>
@@ -244,11 +237,25 @@
     
     <footer>
 
-        <p>If you can, help us! Any amount is enough ;)</p>
-        <p>BTC: bc1qxjd9ns9reqjnxw0fk40huqsca74qzlexyprwzu</p>
-        <p>DOGE: D5feuYU6YkfdJh7zcN7SJTCdSFR7yE5pcA</p>
-        <p>LTC: ltc1qg9875h45t57zs9w6pzqfmgqrhwjfm3ezf5dt5z</p>
-        <!-- <p>XMR: </p> -->
+        <div class="donate-card">
+            <p class="donate-hint">any donation would be greatly appreciated, to make this exist for longer ;)</p>
+            <div class="donate-address">
+                <span class="donate-coin">BTC:</span>
+                <code class="donate-addr" id="addr-btc">bc1qxjd9ns9reqjnxw0fk40huqsca74qzlexyprwzu</code>
+            </div>
+            <div class="donate-address">
+                <span class="donate-coin">DOGE:</span>
+                <code class="donate-addr" id="addr-doge">D5feuYU6YkfdJh7zcN7SJTCdSFR7yE5pcA</code>
+            </div>
+            <div class="donate-address">
+                <span class="donate-coin">LTC:</span>
+                <code class="donate-addr" id="addr-ltc">ltc1qg9875h45t57zs9w6pzqfmgqrhwjfm3ezf5dt5z</code>
+            </div>
+        </div>
+
+        <br>
+
+        <!-- <div class="donate-address"><span class="donate-coin">XMR</span><code class="donate-addr" id="addr-xmr"></code><button class="btn-copy" onclick="copyAddr('addr-xmr',this)">Copy</button></div> -->
         {% if lastup %}
             <span>Last commit: {{lastup}} {% if lastuptxt %} "{{lastuptxt}}" {% endif %} {% if lastuptdy %} <span class="alert-up">!</span> {% endif %}</span>
             |
@@ -260,6 +267,49 @@
         <p>by <a href="https://zuirx.com">zuirx</a> (<a href="https://x.com/zuirxriuz" target="_blank" rel="noopener">X Posts</a>)
         | <a href="https://github.com/zuirx/ytdl-dot-lol">HOST YOUR OWN</a></p>
     </footer>
+
+    <!-- mix av validation -->
+    <script>
+        function updateMixStatus() {
+            const vChecked = document.querySelectorAll('input[id$="_vcheck"]:checked');
+            const aChecked = document.querySelectorAll('input[id$="_acheck"]:checked');
+            const btn    = document.getElementById('mix-btn');
+            const status = document.getElementById('mix-status');
+            if (!btn) return;
+            const v = vChecked.length, a = aChecked.length;
+            if (v === 1 && a === 1) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                status.textContent = 'Ready to mix!';
+                status.style.color = 'var(--accent, #4caf50)';
+            } else {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                const parts = [];
+                if (v !== 1) parts.push(v + '/1 video');
+                if (a !== 1) parts.push(a + '/1 audio');
+                status.textContent = 'Select exactly: ' + parts.join(', ');
+                status.style.color = 'var(--text-muted)';
+            }
+        }
+
+        function submitMix() {
+            const vChecked = document.querySelectorAll('input[id$="_vcheck"]:checked');
+            const aChecked = document.querySelectorAll('input[id$="_acheck"]:checked');
+            if (vChecked.length !== 1 || aChecked.length !== 1) {
+                alert('Please select exactly 1 video and 1 audio track.');
+                return;
+            }
+            document.getElementById('mix-form').submit();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('input[id$="_vcheck"], input[id$="_acheck"]').forEach(function (cb) {
+                cb.addEventListener('change', updateMixStatus);
+            });
+            updateMixStatus();
+        });
+    </script>
 
     <!-- paste button js -->
     <script>

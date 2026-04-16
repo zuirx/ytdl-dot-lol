@@ -1,9 +1,9 @@
-import yt_dlp, os, re, random, glob as glob_module, subprocess, logging, requests, zipfile, threading, time, shutil # type: ignore
+import yt_dlp, os, re, random, glob as glob_module, subprocess, logging, requests, zipfile, threading, time, shutil, uuid # type: ignore
 from datetime import datetime, timedelta, timezone as tz
 from importlib.metadata import version
 from urllib.parse import urlparse
 from django.shortcuts import render, redirect
-from django.http import FileResponse
+from django.http import FileResponse, JsonResponse
 from django.utils import timezone
 from django.contrib import messages
 
@@ -43,6 +43,215 @@ def _cleanup_loop():
                 _pending_deletes.pop(path, None)
 
 threading.Thread(target=_cleanup_loop, daemon=True).start()
+
+# ---------------------------------------------------------------------------
+# Download task registry — tracks background download progress
+# ---------------------------------------------------------------------------
+_download_tasks: dict = {}   # {task_id: {status, percent, filepath, filename, error, expiry}}
+_tasks_lock = threading.Lock()
+
+
+def _run_download_task(task_id, url, type, itag, typeitag):
+    """Background thread: runs yt_dlp download and writes progress to _download_tasks."""
+    output_dir = DIR_DOWNLOAD
+    os.makedirs(output_dir, exist_ok=True)
+
+    video_id = f'file{random.randrange(100000, 999999)}'
+    if '?v=' in url and 'youtube.com' in url:
+        video_id = url.split('?v=')[-1]
+
+    match type:
+        case 'video':
+            dl_format = 'bestvideo+bestaudio/best'
+            filetype  = 'webm'
+        case 'audio':
+            dl_format = 'bestaudio'
+            filetype  = 'mp3'
+        case 'transcript' | 'subtitle':
+            dl_format = None
+            filetype  = 'srt'
+        case _:
+            dl_format = 'bestaudio'
+            filetype  = 'mp3'
+
+    if itag and type not in ('transcript', 'subtitle'):
+        dl_format = itag
+    if typeitag:
+        filetype = typeitag
+
+    final_path = os.path.join(output_dir, f'{video_id}.{filetype}')
+    try:
+        os.remove(final_path)
+    except Exception:
+        pass
+
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            pct_str = d.get('_percent_str', '0%').strip().replace('%', '')
+            try:
+                pct = float(pct_str)
+            except ValueError:
+                pct = 0.0
+            with _tasks_lock:
+                _download_tasks[task_id]['percent'] = pct
+                _download_tasks[task_id]['status']  = 'downloading'
+        elif d['status'] == 'finished':
+            with _tasks_lock:
+                _download_tasks[task_id]['status'] = 'processing'
+
+    if type in ('transcript', 'subtitle'):
+        lang_code = itag if itag else 'en'
+        ydl_opts = {
+            'quiet':             True,
+            'writesubtitles':    True,
+            'writeautomaticsub': True,
+            'subtitleslangs':    [lang_code],
+            'skip_download':     True,
+            'ignoreerrors':      True,
+            'outtmpl':           os.path.join(output_dir, f'{video_id}.%(ext)s'),
+            'postprocessors':    [{'key': 'FFmpegSubtitlesConvertor', 'format': 'srt'}],
+            'progress_hooks':    [progress_hook],
+        }
+    else:
+        ydl_opts = {
+            'quiet':          True,
+            'format':         dl_format,
+            'outtmpl':        final_path,
+            'writethumbnail': True,
+            'postprocessors': [
+                {'key': 'EmbedThumbnail'},
+                {'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg', 'when': 'before_dl'},
+                {'key': 'FFmpegMetadata', 'add_metadata': True},
+            ],
+            'progress_hooks': [progress_hook],
+        }
+        if type == 'audio':
+            ydl_opts['postprocessors'].insert(0, {
+                'key':              'FFmpegExtractAudio',
+                'preferredcodec':   'mp3',
+                'preferredquality': '192',
+            })
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+
+            if type in ('transcript', 'subtitle'):
+                subtitle_exts = ('srt', 'vtt', 'ttml', 'srv3', 'srv2', 'srv1', 'json3')
+                found = []
+                for ext in subtitle_exts:
+                    found = glob_module.glob(os.path.join(output_dir, f'{video_id}*.{ext}'))
+                    if found:
+                        filetype = ext
+                        break
+                if found:
+                    final_path = found[0]
+                else:
+                    raise FileNotFoundError("No subtitle file was downloaded.")
+            else:
+                try:
+                    final_path = info['requested_downloads'][0]['filepath']
+                except Exception:
+                    pass
+
+            title = info.get('title') or video_id
+            if title:
+                video_id = title
+
+        _schedule_delete(final_path)
+        with _tasks_lock:
+            _download_tasks[task_id].update({
+                'status':   'done',
+                'percent':  100,
+                'filepath': final_path,
+                'filename': f'{video_id}.{filetype}',
+                'expiry':   time.time() + 3600,
+            })
+
+    except Exception as e:
+        logger.exception("Background download failed for task %s", task_id)
+        with _tasks_lock:
+            _download_tasks[task_id].update({
+                'status': 'error',
+                'error':  str(e),
+                'expiry': time.time() + 300,
+            })
+
+
+def start_download(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    action = request.POST.get('action', '')
+    url    = request.POST.get('yt_link', '')
+
+    type_    = 'video'
+    itag     = ''
+    typeitag = ''
+
+    if action in ('audio', 'video'):
+        type_ = action
+    elif ' - ' in action:
+        parts    = action.split(' - ')
+        itag_raw = parts[0]
+        url      = parts[1]
+        typeitag = parts[2]
+        if itag_raw.startswith('sub:'):
+            type_ = 'subtitle'
+            itag  = itag_raw[4:]
+        else:
+            itag = itag_raw
+
+    if not url:
+        return JsonResponse({'error': 'No URL provided'}, status=400)
+
+    task_id = str(uuid.uuid4())
+    with _tasks_lock:
+        _download_tasks[task_id] = {
+            'status':   'queued',
+            'percent':  0,
+            'filepath': '',
+            'filename': '',
+            'error':    '',
+            'expiry':   time.time() + 3600,
+        }
+
+    threading.Thread(
+        target=_run_download_task,
+        args=(task_id, url, type_, itag, typeitag),
+        daemon=True,
+    ).start()
+
+    return JsonResponse({'task_id': task_id})
+
+
+def download_progress(request, task_id):
+    with _tasks_lock:
+        task = dict(_download_tasks.get(task_id, {}))
+    if not task:
+        return JsonResponse({'error': 'Task not found'}, status=404)
+    task.pop('filepath', None)
+    task.pop('expiry', None)
+    return JsonResponse(task)
+
+
+def serve_download(request, task_id):
+    with _tasks_lock:
+        task = dict(_download_tasks.get(task_id, {}))
+
+    if not task or task.get('status') != 'done':
+        messages.error(request, 'Download not ready or task expired.')
+        return redirect('home_yt')
+
+    filepath = task['filepath']
+    filename = task['filename']
+
+    if not os.path.exists(filepath):
+        messages.error(request, 'File not found on server.')
+        return redirect('home_yt')
+
+    return FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
+
 
 def home_yt(request, subpath=''):
     listvid  = []

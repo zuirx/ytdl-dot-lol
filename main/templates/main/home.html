@@ -44,7 +44,7 @@
             </div>
         {% endif %}
 
-        <form method="POST" action="{% url 'home_yt' %}">
+        <form method="POST" action="{% url 'home_yt' %}" id="main-download-form">
             {% csrf_token %}
             <div class="input-row">
                 <input type="text" name="yt_link" id="yt_link" placeholder="URL" autocomplete="off">

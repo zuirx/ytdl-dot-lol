@@ -228,7 +228,7 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
     match type:
         case 'video':
             dl_format = 'bestvideo+bestaudio/best'
-            filetype  = 'webm'
+            filetype  = 'mp4'
         case 'audio':
             dl_format = 'bestaudio'
             filetype  = 'mp3'
@@ -282,6 +282,7 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
                     {'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg', 'when': 'before_dl'},
                     {'key': 'FFmpegMetadata', 'add_metadata': True},
                 ],
+                'merge_output_format': 'mp4' if (type == 'video' and not itag) else None,
             }
             if type == 'audio':
                 ydl_opts['postprocessors'].insert(0, {

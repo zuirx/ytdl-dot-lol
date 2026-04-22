@@ -184,6 +184,28 @@ def user_def_cookie(request):
     return response
 
 
+def alter_theme(request, val):
+    response = redirect('home_yt')
+    
+    # Theme handling
+    if val in ['0', '1']:
+        response.set_cookie('theme', val, expires=timezone.now() + timedelta(days=365))
+    else:
+        # Language handling
+        response.set_cookie('lang', val, expires=timezone.now() + timedelta(days=365))
+    
+    # Save quality configurations if provided in the POST body
+    if request.method == 'POST':
+        v_qual = request.POST.get('video_quality')
+        a_qual = request.POST.get('audio_quality')
+        if v_qual:
+            response.set_cookie('video_quality', v_qual, expires=timezone.now() + timedelta(days=365))
+        if a_qual:
+            response.set_cookie('audio_quality', a_qual, expires=timezone.now() + timedelta(days=365))
+            
+    return response
+
+
 def get_last_update_github():
     response = requests.get(GITREPOLINK, headers={"Accept": "application/vnd.github.v3+json"}, timeout=2)
     if response.status_code == 200:

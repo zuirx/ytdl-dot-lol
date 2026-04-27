@@ -127,10 +127,10 @@ h1 {
 .main-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 30px;
+    border-radius: 6px;
+    padding: 20px;
     width: 100%;
-    max-width: 320px;
+    max-width: 300px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
@@ -291,7 +291,7 @@ footer a {
     padding: 16px 20px;
     margin-bottom: 16px;
     text-align: left;
-    min-width: 320px;
+    /* min-width: 320px; */
     max-width: 100%;
 }
 
@@ -371,11 +371,11 @@ footer a {
     color: var(--accent);
 }
 
-@media (max-width: 300px) {
+@media (max-width: 200px) {
     .input-row { flex-direction: column; }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 300px) {
     .actions-row { grid-template-columns: 1fr; }
     .input-row { flex-direction: column; }
 }

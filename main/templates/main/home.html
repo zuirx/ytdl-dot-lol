@@ -29,15 +29,11 @@
     <link rel="shortcut icon" href="{% static 'ytdl/favicon.ico' %}" type="image/x-icon">
     <link rel="stylesheet" href="{% static 'ytdl/style.css' %}">
 </head>
-<body>
+<body class="{% if request.COOKIES.theme == '1' %}light-theme{% endif %}">
 
     <header>
         <img src="{% static 'ytdl/logo.png' %}" alt="ytdl.lol" id="logo">
         <div class="subtitle">web content downloader, just a <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> frontend</div>
-        
-        <!-- <button type="button" class="settings-btn" onclick="openModal()" title="Settings">
-            <svg class="icon gear-icon" viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.47,5.32 14.87,5.07L14.49,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.51,2.42L9.13,5.07C8.53,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,11.67 4.53,11.34 4.57,11L2.46,9.37ZM4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.04 4.95,18.95L7.44,17.95C7.96,18.34 8.53,18.68 9.13,18.93L9.51,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.49,21.58L14.87,18.93C15.47,18.68 16.04,18.34 16.56,17.95L19.05,18.95C19.27,19.04 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" /></svg>
-        </button> -->
     </header>
 
     <main class="main-card">
@@ -70,14 +66,78 @@
                 </button>
                 <button type="submit" name="action" value="playlist">YT Playlist Downloader</button>
                 <button type="submit" name="action" value="info">Pull Download Options</button>
+                <button type="button" class="btn-ghost" onclick="toggleSettings()">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
+                    Settings
+                </button>
+            </div>
+
+            <div class="settings-panel" id="settings-panel">
+                <input type="hidden" name="theme_val" id="theme_val" value="{% if request.COOKIES.theme == '1' %}1{% else %}0{% endif %}">
+                <input type="hidden" name="video_quality" id="video_quality_val" value="{{ request.COOKIES.video_quality|default:'best' }}">
+                <input type="hidden" name="audio_quality" id="audio_quality_val" value="{{ request.COOKIES.audio_quality|default:'best' }}">
+
+                <div class="settings-row">
+                    <div class="settings-group">
+                        <label>Theme</label>
+                        <div class="theme-switch">
+                            <span>Dark</span>
+                            <label class="switch">
+                                <input type="checkbox" id="theme-toggle-checkbox" onchange="toggleTheme(this)">
+                                <span class="slider"></span>
+                            </label>
+                            <span>Light</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <label>Language</label>
+                        <select id="lang-select" name="lang_val">
+                            <option value="en" {% if request.COOKIES.lang == 'en' %}selected{% endif %}>English</option>
+                            <option value="pt-br" {% if request.COOKIES.lang == 'pt-br' %}selected{% endif %}>Português</option>
+                            <option value="es" {% if request.COOKIES.lang == 'es' %}selected{% endif %}>Español</option>
+                        </select>
+                    </div>
+
+                    <div class="settings-group">
+                        <label>Quality Preset</label>
+                        <div class="quality-buttons">
+                            <button type="button" class="quality-btn" onclick="setQuality('worst', this)" data-quality="worst">Worst</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('bad', this)" data-quality="bad">Bad</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('medium', this)" data-quality="medium">Medium</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('good', this)" data-quality="good">Good</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('best', this)" data-quality="best">Best</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+                    <button type="submit" name="action" value="setting-save" class="btn-primary">
+                        Save Settings
+                    </button>
+                </div>
             </div>
         </form>
+        
+        <!-- Progress Bar Container -->
+        <div class="progress-container" id="dl-progress-container">
+            <div class="progress-label">
+                <span id="dl-title">Downloading...</span>
+                <span id="dl-percent">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="dl-bar"></div>
+            </div>
+            <div class="progress-status" id="dl-status">Waiting for worker...</div>
+        </div>
 
         {% if dl_opts %}
+
         <form method="POST" action="{% url 'mix_av' %}" id="mix-form">
             {% csrf_token %}
             <div class="results-container">
-                <h3>{{ final_url }}</h3>
+                <h3>{{ final_title }}</h3>
+                <p style="color: gray; font-size: 12px;">({{ final_url }})</p>
                 <input type="hidden" name="yt_link" value="{{ final_url }}">
                 
                 <h2>Video Options</h2>
@@ -258,7 +318,7 @@
 
         <div class="donate-card">
             <div style="text-align: center;">
-                <p class="donate-hint">if you can't donate, consider viewing this ad once, by disabling ad blocker for a moment 🙏</p>
+                <p class="donate-hint">if you can't donate, consider viewing this ad once, by disabling ad blocker for a moment</p>
                 <br>
                 {% safe_include 'main/ads_body.html' %}
             </div>
@@ -339,115 +399,188 @@
         const selectAllBox = document.getElementById('select-all');
         const videoCheckboxes = document.querySelectorAll('.video-checkbox');
 
-        selectAllBox.addEventListener('change', function() {
-            videoCheckboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
+        if (selectAllBox) {
+            selectAllBox.addEventListener('change', function() {
+                videoCheckboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
             });
-        });
+        }
 
         videoCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 if (!this.checked) {
-                    selectAllBox.checked = false;
+                    if (selectAllBox) selectAllBox.checked = false;
                 }
                 const allChecked = Array.from(videoCheckboxes).every(c => c.checked);
-                if (allChecked) {
+                if (allChecked && selectAllBox) {
                     selectAllBox.checked = true;
                 }
             });
         });
     </script>
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3 style="margin:0;">Settings</h3>
-                <button type="button" class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <form method="POST" id="settings-form">
-                {% csrf_token %}
-                
-                <div class="settings-section">
-                    <label class="section-label">Theme</label>
-                    <div class="btn-group">
-                        <button type="submit" formaction="{% url 'alter_theme' '1' %}" class="btn-ghost" style="flex:1;">Dark</button>
-                        <button type="submit" formaction="{% url 'alter_theme' '0' %}" class="btn-ghost" style="flex:1;">Light</button>
-                    </div>
-                </div>
 
-                <div class="settings-section">
-                    <label class="section-label">Language</label>
-                    <div class="input-row">
-                        <select name="language" id="lang-select" style="flex:1;">
-                            {% get_available_languages as LANGUAGES %}
-                            {% for lang_code, lang_name in LANGUAGES %}
-                                <option value="{{ lang_code }}">{{ lang_name }}</option>
-                            {% endfor %}
-                        </select>
-                        <button type="submit" id="lang-alter-btn" class="btn-primary">Alterar</button>
-                    </div>
-                </div>
-
-                <div class="settings-section">
-                    <label class="section-label">Video Quality</label>
-                    <select name="video_quality" class="full-select">
-                        <option value="lowest">Lowest</option>
-                        <option value="low">Low</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="high">High</option>
-                        <option value="highest">Highest</option>
-                    </select>
-                </div>
-
-                <div class="settings-section">
-                    <label class="section-label">Audio Quality</label>
-                    <select name="audio_quality" class="full-select">
-                        <option value="lowest">Lowest</option>
-                        <option value="low">Low</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="high">High</option>
-                        <option value="highest">Highest</option>
-                    </select>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal JS -->
+    <!-- Settings logic -->
     <script>
-        function openModal() {
-            document.getElementById('settings-modal').style.display = 'flex';
+        function toggleSettings() {
+            document.getElementById('settings-panel').classList.toggle('active');
         }
-        function closeModal() {
-            document.getElementById('settings-modal').style.display = 'none';
-        }
-        
-        // Close on escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === "Escape") closeModal();
-        });
 
-        // Close on click outside
-        window.onclick = function(event) {
-            if (event.target == document.getElementById('settings-modal')) {
-                closeModal();
+        function toggleTheme(checkbox) {
+            const val = checkbox.checked ? '1' : '0';
+            document.body.classList.toggle('light-theme', checkbox.checked);
+            document.getElementById('theme_val').value = val;
+        }
+
+        function setQuality(quality, btn) {
+            document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('video_quality_val').value = quality;
+            document.getElementById('audio_quality_val').value = quality;
+        }
+
+        // Initialize quality buttons from cookie
+        document.addEventListener('DOMContentLoaded', () => {
+            const cookies = document.cookie.split('; ').reduce((acc, current) => {
+                const [name, value] = current.split('=');
+                acc[name] = value;
+                return acc;
+            }, {});
+
+            if (cookies.video_quality) {
+                const activeBtn = document.querySelector(`.quality-btn[data-quality="${cookies.video_quality}"]`);
+                if (activeBtn) activeBtn.classList.add('active');
+            } else {
+                document.querySelector('.quality-btn[data-quality="best"]')?.classList.add('active');
+            }
+
+            if (cookies.theme === '1') {
+                document.getElementById('theme-toggle-checkbox').checked = true;
+            }
+        });
+    </script>
+
+    <!-- async download logic -->
+    <script>
+        async function handleAsyncDownload(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            // Get the clicked button's value if it exists
+            const submitter = event.submitter;
+            if (submitter && submitter.name === 'action') {
+                formData.set('action', submitter.value);
+            }
+
+            // Show progress container
+            const container = document.getElementById('dl-progress-container');
+            const bar = document.getElementById('dl-bar');
+            const percentText = document.getElementById('dl-percent');
+            const statusText = document.getElementById('dl-status');
+            const titleText = document.getElementById('dl-title');
+
+            container.classList.add('active');
+            bar.style.width = '0%';
+            percentText.textContent = '0%';
+            statusText.textContent = 'Starting download task...';
+            titleText.textContent = 'Initializing...';
+            
+            // Disable all buttons in the form to prevent multiple clicks
+            const buttons = form.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = true);
+
+            try {
+                const response = await fetch('{% url "initiate_download" %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                });
+
+                const data = await response.json();
+                if (data.task_id) {
+                    pollTaskStatus(data.task_id);
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to start download'));
+                    container.classList.remove('active');
+                    buttons.forEach(btn => btn.disabled = false);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Connection error');
+                container.classList.remove('active');
+                buttons.forEach(btn => btn.disabled = false);
             }
         }
 
-        // Handle language button formaction change
-        const langSelect = document.getElementById('lang-select');
-        const langBtn = document.getElementById('lang-alter-btn');
-        const updateLangAction = () => {
-            if (!langSelect || !langBtn) return;
-            const val = langSelect.value;
-            const baseUrl = "{% url 'alter_theme' 'LANGUAGE_PLACEHOLDER' %}";
-            langBtn.formAction = baseUrl.replace('LANGUAGE_PLACEHOLDER', val);
-        };
-        
-        if (langSelect) {
-            langSelect.onchange = updateLangAction;
-            updateLangAction();
+        function pollTaskStatus(taskId) {
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/task_status/${taskId}/`);
+                    const data = await response.json();
+
+                    const bar = document.getElementById('dl-bar');
+                    const percentText = document.getElementById('dl-percent');
+                    const statusText = document.getElementById('dl-status');
+                    const titleText = document.getElementById('dl-title');
+
+                    if (data.state === 'PROGRESS' || data.state === 'SUCCESS') {
+                        const p = data.percent || 0;
+                        bar.style.width = p + '%';
+                        percentText.textContent = Math.round(p) + '%';
+                        
+                        if (data.state === 'PROGRESS') {
+                            statusText.textContent = data.status || 'Downloading in background...';
+                        } else {
+                            statusText.textContent = 'Finishing up...';
+                        }
+                        
+                        if (data.state === 'SUCCESS') {
+                            clearInterval(interval);
+                            statusText.textContent = 'Complete! Your download should start now.';
+                            titleText.textContent = data.result.title;
+                            // Trigger final download
+                            window.location.href = `/download_ready/${taskId}/`;
+                            
+                            // Reset UI after a delay
+                            setTimeout(() => {
+                                document.getElementById('dl-progress-container').classList.remove('active');
+                                document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                            }, 5000);
+                        }
+                    } else if (data.state === 'FAILURE') {
+                        clearInterval(interval);
+                        alert('Download failed: ' + (data.error || 'Unknown error'));
+                        document.getElementById('dl-progress-container').classList.remove('active');
+                        document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                    }
+                } catch (err) {
+                    console.error('Polling error', err);
+                }
+            }, 500);
         }
+
+        // Intercept all download forms
+        document.addEventListener('DOMContentLoaded', () => {
+            const mainForm = document.getElementById('main-download-form');
+            if (mainForm) {
+                mainForm.addEventListener('submit', (e) => {
+                    const action = e.submitter ? e.submitter.value : '';
+                    // Only use async for video/audio/info (actually info should probably stay sync as it renders the page)
+                    if (action === 'video' || action === 'audio') {
+                        handleAsyncDownload(e);
+                    }
+                });
+            }
+
+            // Intercept format detail table forms
+            document.querySelectorAll('.results-container form').forEach(form => {
+                form.addEventListener('submit', handleAsyncDownload);
+            });
+        });
     </script>
+
 </body>
 </html>

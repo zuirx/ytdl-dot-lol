@@ -1,28 +1,32 @@
-import yt_dlp, os, re, random, glob as glob_module, subprocess, logging, requests, zipfile, threading, time, shutil, uuid # type: ignore
+import yt_dlp, os, re, random, glob as glob_module, subprocess, logging, requests, zipfile, threading, time, shutil
 from datetime import datetime, timedelta, timezone as tz
 from importlib.metadata import version
-from urllib.parse import urlparse
 from django.shortcuts import render, redirect
 from django.http import FileResponse, JsonResponse
 from django.utils import timezone
 from django.contrib import messages
+
+from celery.result import AsyncResult
+from .tasks import download_video_task
 
 logger = logging.getLogger(__name__)
 
 DIR_DOWNLOAD = 'content-downloads'
 DIR_MIX      = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
-GITREPOLINK  = 'https://api.github.com/repos/zuirx/ytdl-dot-lol/commits'
+GITREPOLINK  = 'https://api.github.com/repos/zuirx/ytdl-dot-lol/commits' # Change this for your fork!
 
 # ---------------------------------------------------------------------------
 # File cleanup registry — paths are deleted 1 hour after download
 # ---------------------------------------------------------------------------
-_pending_deletes: dict = {}   # {path: expiry_unix_time}
+_pending_deletes: dict = {}
 _pending_lock = threading.Lock()
+
 
 def _schedule_delete(path, delay=3600):
     with _pending_lock:
         _pending_deletes[path] = time.time() + delay
+
 
 def _cleanup_loop():
     while True:
@@ -43,6 +47,10 @@ def _cleanup_loop():
                 _pending_deletes.pop(path, None)
 
 threading.Thread(target=_cleanup_loop, daemon=True).start()
+
+# ---------------------------------------------------------------------------
+# Main functions
+# ---------------------------------------------------------------------------
 
 def home_yt(request, subpath=''):
     listvid  = []
@@ -104,8 +112,7 @@ def home_yt(request, subpath=''):
                             formats_dict['audio'][format_id] = entry
 
                     for lang_code, formats in info.get('subtitles', {}).items():
-                        if not any(f.get('url') for f in formats):
-                            continue
+                        if not any(f.get('url') for f in formats): continue
                         formats_dict['subtitles'].append({
                             'lang': lang_code,
                             'name': formats[0].get('name', lang_code),
@@ -125,9 +132,12 @@ def home_yt(request, subpath=''):
                                 'url':  url,
                             })
 
+                    title = info.get('title')
+
                     return render(request, 'main/home.html', {
                         'dl_opts':   formats_dict,
-                        'final_url': url
+                        'final_url': url,
+                        'final_title': title
                     })
 
                 except Exception as e:
@@ -142,6 +152,24 @@ def home_yt(request, subpath=''):
                 return download_yt(request, subpath=url, type='transcript')
             case 'playlist':
                 listvid = retrieve_playlist_yt(request, subpath=url)
+            case 'setting-save':
+                theme_val = request.POST.get('theme_val')
+                lang_val  = request.POST.get('lang_val')
+                v_qual    = request.POST.get('video_quality')
+                a_qual    = request.POST.get('audio_quality')
+                
+                response = redirect('home_yt')
+                if theme_val is not None:
+                    response.set_cookie('theme', theme_val, expires=timezone.now() + timedelta(days=365))
+                if lang_val:
+                    response.set_cookie('lang', lang_val, expires=timezone.now() + timedelta(days=365))
+                if v_qual:
+                    response.set_cookie('video_quality', v_qual, expires=timezone.now() + timedelta(days=365))
+                if a_qual:
+                    response.set_cookie('audio_quality', a_qual, expires=timezone.now() + timedelta(days=365))
+                
+                messages.success(request, 'Settings saved successfully.')
+                return response
 
     try:
         ytdlpver = version('yt_dlp')
@@ -169,41 +197,6 @@ def dl_from_opt(request):
         return download_yt(request, subpath=url, type='subtitle', itag=itag[4:], typeitag='srt')
 
     return download_yt(request, subpath=url, itag=itag, typeitag=typeitag)
-
-
-def user_def_cookie(request):
-    color_def    = request.POST.get("color_def")
-    language_def = request.POST.get("language_def")
-    response     = redirect('home_yt')
-
-    if color_def:
-        response.set_cookie('theme', color_def,    expires=timezone.now() + timedelta(days=7))
-    if language_def:
-        response.set_cookie('theme', language_def, expires=timezone.now() + timedelta(days=365))
-
-    return response
-
-
-def alter_theme(request, val):
-    response = redirect('home_yt')
-    
-    # Theme handling
-    if val in ['0', '1']:
-        response.set_cookie('theme', val, expires=timezone.now() + timedelta(days=365))
-    else:
-        # Language handling
-        response.set_cookie('lang', val, expires=timezone.now() + timedelta(days=365))
-    
-    # Save quality configurations if provided in the POST body
-    if request.method == 'POST':
-        v_qual = request.POST.get('video_quality')
-        a_qual = request.POST.get('audio_quality')
-        if v_qual:
-            response.set_cookie('video_quality', v_qual, expires=timezone.now() + timedelta(days=365))
-        if a_qual:
-            response.set_cookie('audio_quality', a_qual, expires=timezone.now() + timedelta(days=365))
-            
-    return response
 
 
 def get_last_update_github():
@@ -459,3 +452,82 @@ def mix_av(request):
     _schedule_delete(audiofile)
     _schedule_delete(output_final)
     return FileResponse(open(output_final, 'rb'), as_attachment=True, filename=f'mixed_{random_num}.mp4')
+
+# ---------------------------------------------------------------------------
+# Async Download Views
+# ---------------------------------------------------------------------------
+
+def initiate_download(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+    url = request.POST.get('yt_link')
+    action = request.POST.get('action')
+    
+    # Handle the 'action' string which might be from the detail tables
+    # e.g., "format_id - url - ext"
+    itag = 0
+    typeitag = ''
+    type = 'video'
+
+    if action:
+        if ' - ' in action:
+            parts = action.split(' - ')
+            itag = parts[0]
+            url = parts[1]
+            typeitag = parts[2]
+            if itag.startswith('sub:'):
+                type = 'subtitle'
+                itag = itag[4:]
+                typeitag = 'srt'
+        elif action in ['video', 'audio', 'transcript']:
+            type = action
+        
+    if not url:
+        return JsonResponse({'error': 'No link provided.'}, status=400)
+
+    task = download_video_task.delay(url, type=type, itag=itag, typeitag=typeitag)
+    return JsonResponse({'task_id': task.id})
+
+
+def task_status(request, task_id):
+    res = AsyncResult(task_id)
+    if res.state == 'PROGRESS':
+        return JsonResponse({
+            'state': res.state,
+            'percent': res.info.get('percent', 0),
+            'status': res.info.get('status', 'Processing...')
+        })
+    elif res.state == 'SUCCESS':
+        return JsonResponse({
+            'state': res.state,
+            'percent': 100,
+            'result': res.result
+        })
+    elif res.state == 'FAILURE':
+        return JsonResponse({
+            'state': res.state,
+            'error': str(res.info)
+        })
+    else:
+        return JsonResponse({
+            'state': res.state,
+            'percent': 0
+        })
+
+
+def get_downloaded_file(request, task_id):
+    res = AsyncResult(task_id)
+    if res.state == 'SUCCESS':
+        result = res.result
+        file_path = result['file_path']
+        title = result['title']
+        ext = result['ext']
+        
+        if os.path.exists(file_path):
+            _schedule_delete(file_path)
+            return FileResponse(open(file_path, 'rb'), as_attachment=True, filename=f'{title}.{ext}')
+        else:
+            return JsonResponse({'error': 'File not found'}, status=404)
+    
+    return JsonResponse({'error': 'Task not completed'}, status=400)

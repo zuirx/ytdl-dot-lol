@@ -14,8 +14,8 @@ from .models import ErrorReport
 
 logger = logging.getLogger(__name__)
 
-MAX_VIDEO_DURATION = 7200  # 2 hours in seconds
-MAX_DOWNLOADS_PER_HOUR = 10
+MAX_VIDEO_DURATION = 7200
+MAX_DOWNLOADS_PER_HOUR = 50
 
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')

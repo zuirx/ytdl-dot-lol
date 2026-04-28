@@ -71,4 +71,4 @@ To ensure site stability, the following limits are enforced:
 -   **Cleanup**: Downloaded files are automatically deleted from the server 1 hour after creation.
 
 ## License
-This project is open-source in GPL v2.1. Feel free to contribute!
+This project is open-source (GPL v2.1). Feel free to contribute!

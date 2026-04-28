@@ -575,3 +575,9 @@ def get_downloaded_file(request, task_id):
             return JsonResponse({'error': 'File not found'}, status=404)
     
     return JsonResponse({'error': 'Task not completed'}, status=400)
+
+
+def health(request):
+    response = HttpResponse("OK", content_type="text/plain")
+    response["Access-Control-Allow-Origin"] = "*"
+    return response

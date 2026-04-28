@@ -5,6 +5,8 @@ from django.shortcuts import render, redirect
 from django.http import FileResponse, JsonResponse
 from django.utils import timezone
 from django.contrib import messages
+from django.http import HttpResponse
+
 
 from celery.result import AsyncResult
 from .tasks import download_video_task, download_playlist_task
@@ -573,3 +575,6 @@ def get_downloaded_file(request, task_id):
             return JsonResponse({'error': 'File not found'}, status=404)
     
     return JsonResponse({'error': 'Task not completed'}, status=400)
+
+def health(request):
+    return HttpResponse("OK", content_type="text/plain")

@@ -76,7 +76,7 @@ h1 {
     padding: 12px 16px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    background: rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .mix-status {
@@ -96,7 +96,7 @@ h1 {
     height: 44px;
     font-size: 1.2rem;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -128,20 +128,45 @@ h1 {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 20px;
+    padding: 10px;
     width: 100%;
-    max-width: 300px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 450px;
 }
 
 .message_sv {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     color: var(--danger);
     background: rgba(255, 95, 95, 0.1);
-    padding: 10px;
+    padding: 10px 15px;
     border-radius: 6px;
     font-size: 0.85rem;
     margin-bottom: 20px;
 }
+
+.message_sv.success {
+    color: #4caf50;
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.message-close {
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.2rem;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    margin-left: 10px;
+}
+
+.message-close:hover {
+    opacity: 1;
+}
+
 
 .input-row {
     display: flex;
@@ -232,7 +257,7 @@ h2 {
     overflow-x: auto;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     margin-bottom: 30px;
 }
 
@@ -246,7 +271,7 @@ table {
 th {
     text-align: left;
     padding: 12px;
-    background: rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
     color: var(--text-muted);
     font-weight: 600;
     border-bottom: 1px solid var(--border);
@@ -264,7 +289,7 @@ tr:last-child td {
 .badge {
     background: #334155;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 0.75rem;
 }
 
@@ -287,12 +312,12 @@ footer a {
     gap: 10px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 20px;
+    border-radius: 6px;
+    padding: 10px 10px;
     margin-bottom: 16px;
     text-align: left;
-    /* min-width: 320px; */
-    max-width: 100%;
+    min-width: 450px;
+    max-width: 450px;
 }
 
 .donate-header {
@@ -321,6 +346,7 @@ footer a {
 }
 
 .donate-hint {
+    text-align: center;
     margin: 0 0 4px;
     font-size: 0.78rem;
     color: var(--text-muted);
@@ -371,16 +397,26 @@ footer a {
     color: var(--accent);
 }
 
-@media (max-width: 200px) {
-    .input-row { flex-direction: column; }
+@media (max-width: 550px) {
+    .actions-row {
+        grid-template-columns: 1fr;
+    }
+
+    .input-row {
+        flex-direction: column;
+    }
+
+    .main-card {
+        min-width: 270px;
+        max-width: 270px;
+    }
+
+    .donate-card {
+        min-width: 270px;
+        max-width: 270px;
+    }
 }
 
-@media (max-width: 300px) {
-    .actions-row { grid-template-columns: 1fr; }
-    .input-row { flex-direction: column; }
-}
-
-/* Settings & Modal Styles */
 .settings-panel {
     display: none;
     background: var(--bg-card);
@@ -397,8 +433,15 @@ footer a {
 }
 
 @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .settings-row {
@@ -468,7 +511,10 @@ footer a {
 .slider {
     position: absolute;
     cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-color: var(--bg-input);
     border: 1px solid var(--border);
     transition: .4s;
@@ -487,11 +533,11 @@ footer a {
     border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
     background-color: var(--accent);
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
     transform: translateX(20px);
     background-color: #000;
 }
@@ -554,4 +600,3 @@ input:checked + .slider:before {
     color: var(--text-muted);
     text-align: center;
 }
-

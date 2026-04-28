@@ -22,11 +22,9 @@ GITREPOLINK  = 'https://api.github.com/repos/zuirx/ytdl-dot-lol/commits' # Chang
 _pending_deletes: dict = {}
 _pending_lock = threading.Lock()
 
-
 def _schedule_delete(path, delay=3600):
     with _pending_lock:
         _pending_deletes[path] = time.time() + delay
-
 
 def _cleanup_loop():
     while True:
@@ -66,20 +64,20 @@ def home_yt(request, subpath=''):
     try:
         lastup, lastuptxt = get_last_update_github()
         today = datetime.now(tz.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-        if lastup == today:
-            lastuptdy = True
-    except:
-        pass
+        if lastup == today: lastuptdy = True
+    except: pass
 
     if request.method == 'POST':
         url    = request.POST.get("yt_link")
         action = request.POST.get("action")
 
-        if not url:
+        print("ITS ", action)
+
+        if not url and action != 'setting-save':
             messages.error(request, 'No link provided.')
             return redirect('home_yt')
 
-        if not re.search('http', url):
+        if not re.search('http', url) and action != 'setting-save':
             messages.error(request, 'Invalid link. (we need the https:// or http://)')
             return redirect('home_yt')
 
@@ -143,7 +141,6 @@ def home_yt(request, subpath=''):
                 except Exception as e:
                     messages.error(request, f"Error: {e}")
                     return redirect('home_yt')
-
             case 'video':
                 return download_yt(request, subpath=url, type='video')
             case 'audio':

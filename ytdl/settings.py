@@ -128,3 +128,10 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BEAT_SCHEDULE = {
+    'update-ytdlp-every-hour': {
+        'task': 'main.tasks.update_ytdlp_task',
+        'schedule': 3600.0,
+    },
+}

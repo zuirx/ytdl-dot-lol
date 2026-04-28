@@ -9,7 +9,34 @@ from django.contrib import messages
 from celery.result import AsyncResult
 from .tasks import download_video_task, download_playlist_task
 
+from django.core.cache import cache
+from .models import ErrorReport
+
 logger = logging.getLogger(__name__)
+
+MAX_VIDEO_DURATION = 7200  # 2 hours in seconds
+MAX_DOWNLOADS_PER_HOUR = 10
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0]
+    return request.META.get('REMOTE_ADDR')
+
+def report_error(request, error_msg):
+    messages.error(request, error_msg)
+    ip = get_client_ip(request)
+    
+    # Check for duplicates in the last 5 minutes to prevent spam attacks
+    five_min_ago = timezone.now() - timedelta(minutes=5)
+    exists = ErrorReport.objects.filter(
+        pipv4=ip, 
+        error=str(error_msg), 
+        date__gte=five_min_ago
+    ).exists()
+    
+    if not exists:
+        ErrorReport.objects.create(pipv4=ip, date=timezone.now(), error=str(error_msg))
 
 DIR_DOWNLOAD = 'content-downloads'
 DIR_MIX      = 'content-mix'
@@ -72,11 +99,11 @@ def home_yt(request, subpath=''):
         action = request.POST.get("action")
 
         if not url and action != 'setting-save':
-            messages.error(request, 'No link provided.')
+            report_error(request, 'No link provided.')
             return redirect('home_yt')
 
         if not re.search('http', url) and action != 'setting-save':
-            messages.error(request, 'Invalid link. (we need the https:// or http://)')
+            report_error(request, 'Invalid link. (we need the https:// or http://)')
             return redirect('home_yt')
 
         match action:
@@ -129,6 +156,11 @@ def home_yt(request, subpath=''):
                             })
 
                     title = info.get('title')
+                    duration = info.get('duration', 0)
+
+                    if duration > MAX_VIDEO_DURATION:
+                        report_error(request, f"Video is too long ({round(duration/3600, 1)}h). Maximum allowed is {int(MAX_VIDEO_DURATION/3600)} hours.")
+                        return redirect('home_yt')
 
                     return render(request, 'main/home.html', {
                         'dl_opts':   formats_dict,
@@ -137,7 +169,7 @@ def home_yt(request, subpath=''):
                     })
 
                 except Exception as e:
-                    messages.error(request, f"Error: {e}")
+                    report_error(request, f"Error: {e}")
                     return redirect('home_yt')
             case 'video':
                 return download_yt(request, subpath=url, type='video')
@@ -315,14 +347,14 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
     except Exception as e:
         if noreturn:
             raise
-        messages.error(request, f"Error: {e}")
+        report_error(request, f"Error: {e}")
         logger.exception("Download failed for %s", url)
         return redirect('home_yt')
 
 
 def retrieve_playlist_yt(request, subpath):
     if 'youtube.com' not in subpath or 'list=' not in subpath:
-        messages.error(request, "This is (probably) not a Youtube playlist link.")
+        report_error(request, "This is (probably) not a Youtube playlist link.")
         return []
 
     with yt_dlp.YoutubeDL({'extract_flat': True, 'quiet': True}) as ydl:
@@ -399,7 +431,7 @@ def dl_sel_playlist_yt(request):
         return FileResponse(open(zip_path, 'rb'), as_attachment=True, filename=f'Playlist_{num_id}.zip')
 
     except Exception as e:
-        messages.error(request, f"Error: {e}")
+        report_error(request, f"Error: {e}")
         logger.exception("Playlist download failed")
         return redirect('home_yt')
 
@@ -413,7 +445,7 @@ def mix_av(request):
     audio_options = [k for k, v in request.POST.items() if k.endswith('_acheck') and v == 'on']
 
     if len(video_options) != 1 or len(audio_options) != 1:
-        messages.error(request, "Select exactly one video and one audio track.")
+        report_error(request, "Select exactly one video and one audio track.")
         return redirect('home_yt')
 
     random_num = random.randrange(100000, 999999)
@@ -421,7 +453,7 @@ def mix_av(request):
         videofile = download_yt(request, subpath=url, itag=video_options[0].split('_')[0], noreturn=True, custom_output_dir=DIR_MIX, filename=f'videotomix{random_num}')
         audiofile = download_yt(request, subpath=url, itag=audio_options[0].split('_')[0], noreturn=True, custom_output_dir=DIR_MIX, filename=f'audiotomix{random_num}')
     except Exception as e:
-        messages.error(request, f"Download error: {e}")
+        report_error(request, f"Download error: {e}")
         return redirect('home_yt')
 
     output_final = os.path.join(DIR_MIX, f'filefinal_{random_num}.mp4')
@@ -440,7 +472,7 @@ def mix_av(request):
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
-        messages.error(request, f"FFmpeg error: {e.stderr}")
+        report_error(request, f"FFmpeg error: {e.stderr}")
         return redirect('home_yt')
 
     _schedule_delete(videofile)
@@ -456,10 +488,20 @@ def initiate_download(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
+    ip = get_client_ip(request)
+    cache_key = f"dl_count_{ip}"
+    dl_count = cache.get(cache_key, 0)
+
+    if dl_count >= MAX_DOWNLOADS_PER_HOUR:
+        return JsonResponse({'error': f'Rate limit exceeded. Maximum {MAX_DOWNLOADS_PER_HOUR} downloads per hour allowed.'}, status=429)
+
     url = request.POST.get('yt_link')
     action = request.POST.get('action')
     selected_videos = request.POST.getlist('selected_videos')
     download_type = request.POST.get("download_type", 'audio')
+
+    # If everything is okay, increment the count in cache
+    cache.set(cache_key, dl_count + 1, 3600) # 1 hour timeout
 
     if selected_videos:
         list_vids = [v.split('<a href="')[1].split('"')[0] for v in selected_videos]

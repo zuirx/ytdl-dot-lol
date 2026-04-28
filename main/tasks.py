@@ -3,10 +3,13 @@ import yt_dlp
 import logging
 import zipfile
 import shutil
+import subprocess
 from celery import shared_task
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+MAX_VIDEO_DURATION = 7200  # 2 hours in seconds
 
 def zip_folder_task(folder_path, output_path):
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -55,6 +58,12 @@ def download_playlist_task(self, video_urls, download_type='audio', output_dir='
         
         try:
             with yt_dlp.YoutubeDL(params) as ydl:
+                # Check duration before download
+                info = ydl.extract_info(v_url, download=False)
+                duration = info.get('duration', 0)
+                if duration > MAX_VIDEO_DURATION:
+                    logger.warning(f"Skipping video {v_url} because it exceeds duration limit.")
+                    continue
                 ydl.download([v_url])
         except Exception as e:
             logger.error(f"Failed to download {v_url}: {e}")
@@ -149,6 +158,17 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', output_dir
                 'status': f'Finished processing {pp_name}.'
             })
 
+    # Pre-check duration
+    try:
+        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+            duration = info.get('duration', 0)
+            if duration > MAX_VIDEO_DURATION:
+                raise ValueError(f"Video is too long ({round(duration/3600, 1)}h). Max limit is {int(MAX_VIDEO_DURATION/3600)}h.")
+    except Exception as e:
+        if "Video is too long" in str(e): raise
+        # If it's another error, we'll let the main download try and catch it (it might be a playlist/unsupported URL)
+
     ydl_opts = {
         'quiet':               True,
         'format':              dl_format,
@@ -193,3 +213,11 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', output_dir
     except Exception as e:
         logger.exception("Download task failed")
         raise
+
+@shared_task
+def update_ytdlp_task():
+    try:
+        subprocess.run(["pip", "install", "-U", "yt-dlp"], check=True)
+        logger.info("yt-dlp updated successfully.")
+    except Exception as e:
+        logger.error(f"Failed to update yt-dlp: {e}")

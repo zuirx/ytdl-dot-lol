@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.contrib import messages
 
 from celery.result import AsyncResult
-from .tasks import download_video_task
+from .tasks import download_video_task, download_playlist_task
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,6 @@ def home_yt(request, subpath=''):
     if request.method == 'POST':
         url    = request.POST.get("yt_link")
         action = request.POST.get("action")
-
-        print("ITS ", action)
 
         if not url and action != 'setting-save':
             messages.error(request, 'No link provided.')
@@ -340,7 +338,7 @@ def retrieve_playlist_yt(request, subpath):
             })
 
     return [
-        f"""<a href="{v['url']}" class="listlink" target="_blank">{v['title']}</a>  | {v['duration']}s"""
+        f"""<a href="{v['url']}" target="_blank">{v['title']}</a>  | {str(round(float(v['duration']/60),2))} minutes"""
         for v in video_list
     ]
 
@@ -460,9 +458,14 @@ def initiate_download(request):
 
     url = request.POST.get('yt_link')
     action = request.POST.get('action')
-    
-    # Handle the 'action' string which might be from the detail tables
-    # e.g., "format_id - url - ext"
+    selected_videos = request.POST.getlist('selected_videos')
+    download_type = request.POST.get("download_type", 'audio')
+
+    if selected_videos:
+        list_vids = [v.split('<a href="')[1].split('"')[0] for v in selected_videos]
+        task = download_playlist_task.delay(list_vids, download_type=download_type)
+        return JsonResponse({'task_id': task.id})
+
     itag = 0
     typeitag = ''
     type = 'video'

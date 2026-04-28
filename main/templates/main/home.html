@@ -259,7 +259,7 @@
                                 <tr><td colspan="4" style="color: var(--text-muted); text-align: center; padding: 16px;">No subtitles available for this video.</td></tr>
                                 {% endif %}
                             </tbody>
-                        </table>
+                </table>
                     </div>
                 </div>
             </form>
@@ -269,33 +269,43 @@
         {% if listvid %}
             <form method="POST" action="{% url 'dl_sel_playlist_yt' %}" class="formlistyt">
                 {% csrf_token %}
-                <div style="display: flex; align-items: center;">
-                    <button type="submit" class="btn-primary" id="buttonzipdl">
-                        Download & ZIP selected as:
-                    </button>
-    
-                    <label>
-                        <input type="radio" id="dlas_audio" name="download_type" value="audio" checked> 
-                        <strong>Audio</strong>
-                    </label>
-                    <label>
-                        <input type="radio" id="dlas_video" name="download_type" value="video"> 
-                        <strong>Video</strong>
+                
+                <div class="playlist-controls">
+                    <div class="playlist-actions">
+                        <button type="submit" class="btn-primary" id="buttonzipdl">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg>
+                            Download & ZIP Selected
+                        </button>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="download_type" value="audio" checked> Audio
+                            </label>
+                            <label>
+                                <input type="radio" name="download_type" value="video"> Video
+                            </label>
+                        </div>
+                    </div>
+                    <label class="select-all-label">
+                        <input type="checkbox" id="select-all"> <strong>Select All</strong>
                     </label>
                 </div>
-                
-                <br><br>
 
-                <label>
-                    <input type="checkbox" id="select-all"> <strong>Select All</strong>
-                </label>
+                <div class="playlist-items">
+                    {% for v in listvid %}
+                        <div class="playlist-item" onclick="const cb = this.querySelector('.video-checkbox'); if(event.target !== cb) cb.click();">
+                            <input type="checkbox" name="selected_videos" value="{{ v.url }}" class="video-checkbox">
+                            <div class="playlist-info">
+                                {{ v.title|safe }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
 
-                {% for v in listvid %}
-                    <div class="results-container">
-                        <h3><input type="checkbox" id="selected_videos" name="selected_videos" value="{{ v }}" class="video-checkbox"> {{ v|safe }}</h3>
-                    </div>
-                {% endfor %}
-                <a href="#buttonzipdl" class="gototop">^ Go to Top</a>
+                <div style="margin-top: 30px; text-align: center;">
+                    <a href="#logo" class="gototop" style="text-decoration: none; font-size: 0.85rem; color: var(--text-muted);">
+                        ↑ Back to Top
+                    </a>
+                </div>
             </form>
         {% endif %}
     </main>
@@ -575,6 +585,11 @@
 
             // Intercept format detail table forms
             document.querySelectorAll('.results-container form').forEach(form => {
+                form.addEventListener('submit', handleAsyncDownload);
+            });
+
+            // Intercept playlist selection form
+            document.querySelectorAll('.formlistyt').forEach(form => {
                 form.addEventListener('submit', handleAsyncDownload);
             });
         });

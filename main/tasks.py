@@ -1,10 +1,83 @@
 import os
 import yt_dlp
 import logging
+import zipfile
+import shutil
 from celery import shared_task
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+def zip_folder_task(folder_path, output_path):
+    with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname   = os.path.relpath(file_path, os.path.dirname(folder_path))
+                zipf.write(file_path, arcname)
+
+@shared_task(bind=True)
+def download_playlist_task(self, video_urls, download_type='audio', output_dir='content-playlist'):
+    os.makedirs(output_dir, exist_ok=True)
+    task_id = self.request.id
+    pl_temp_dir = os.path.join(output_dir, task_id)
+    os.makedirs(pl_temp_dir, exist_ok=True)
+    
+    total_vids = len(video_urls)
+    
+    if download_type == 'audio':
+        params = {
+            'format':  'bestaudio/best',
+            'postprocessors': [{
+                'key':              'FFmpegExtractAudio',
+                'preferredcodec':   'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl':            f'{pl_temp_dir}/%(title)s.%(ext)s',
+            'quiet':              True,
+            'nocheckcertificate': True,
+        }
+    else:
+        params = {
+            'format':              'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4',
+            'outtmpl':             f'{pl_temp_dir}/%(title)s.%(ext)s',
+            'quiet':               True,
+            'nocheckcertificate':  True,
+        }
+
+    for i, v_url in enumerate(video_urls):
+        current = i + 1
+        self.update_state(state='PROGRESS', meta={
+            'percent': (i / total_vids) * 100,
+            'status': f'Downloading video {current} of {total_vids}...'
+        })
+        
+        try:
+            with yt_dlp.YoutubeDL(params) as ydl:
+                ydl.download([v_url])
+        except Exception as e:
+            logger.error(f"Failed to download {v_url}: {e}")
+            # Continue with others even if one fails? 
+            # For now, let's just log it.
+
+    self.update_state(state='PROGRESS', meta={
+        'percent': 95,
+        'status': 'Zipping files...'
+    })
+    
+    zip_path = os.path.join(output_dir, f'Playlist_{task_id}.zip')
+    zip_folder_task(pl_temp_dir, zip_path)
+    
+    # Cleanup temp dir
+    shutil.rmtree(pl_temp_dir, ignore_errors=True)
+    
+    return {
+        'status': 'Finished',
+        'file_path': zip_path,
+        'title': f'Playlist_{task_id}',
+        'ext': 'zip'
+    }
 
 @shared_task(bind=True)
 def download_video_task(self, url, type='video', itag=0, typeitag='', output_dir='content-downloads'):

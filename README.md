@@ -1,8 +1,6 @@
 # ytdl-dot-lol
 yt-dlp front-end in django 
 
-! this project is having changes !
-
 ## Requirements
 - Python 3.11.*
 

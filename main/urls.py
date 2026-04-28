@@ -7,7 +7,6 @@ urlpatterns = [
     path('', views.home_yt, name='home_yt'),
     path('dl_from_opt/', views.dl_from_opt, name='dl_from_opt'),
     path('dl_sel_playlist_yt/', views.dl_sel_playlist_yt, name='dl_sel_playlist_yt'),
-    path('health/', views.health, name='health'),
     path('mix_av/', views.mix_av, name='mix_av'),
     path('initiate_download/', views.initiate_download, name='initiate_download'),
     path('task_status/<str:task_id>/', views.task_status, name='task_status'),

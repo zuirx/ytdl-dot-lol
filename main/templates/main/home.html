@@ -327,6 +327,7 @@
             </div>
         </div>
         <br>
+        {% comment %}
         <div class="donate-card">
             <div style="text-align: center;">
                 <p class="donate-hint">if you can't donate, consider viewing this ad once, by disabling ad blocker for a moment</p>
@@ -334,6 +335,7 @@
                 {% safe_include 'main/ads_body.html' %}
             </div>
         </div>
+        {% endcomment %}
         <br>
         {% if lastup %}
             <span>Last commit: {{lastup}} {% if lastuptxt %} "{{lastuptxt}}" {% endif %} {% if lastuptdy %} <span class="alert-up">!</span> {% endif %}</span>

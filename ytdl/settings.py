@@ -10,7 +10,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['ytdl.lol','www.ytdl.lol','127.0.0.1'] # <-- change this
+ALLOWED_HOSTS = ['ytdl.lol','www.ytdl.lol','m.ytdl.lol','127.0.0.1'] # <-- change this
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

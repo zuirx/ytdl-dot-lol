@@ -1,7 +1,9 @@
 # ytdl-dot-lol
 A modern, simple, and easy-to-use web frontend for `yt-dlp`, built with Django and Celery.
 
-You can check it out at https://ytdl.lol
+This project is still at development.
+
+You can see it working at: https://ytdl.lol
 
 ## Requirements
 - **Python**: 3.11+

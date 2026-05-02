@@ -138,6 +138,7 @@
                 <div class="progress-bar-fill" id="dl-bar"></div>
             </div>
             <div class="progress-status" id="dl-status">Waiting for worker...</div>
+            <button type="button" id="cancel-dl-btn" class="btn-ghost" onclick="cancelCurrentTask()" style="margin-top: 15px; width: 100%; font-size: 0.8rem; display: none;">Cancel Download</button>
         </div>
 
         {% if dl_opts %}
@@ -472,6 +473,40 @@
 
     <!-- async download logic -->
     <script>
+        let currentTaskId = null;
+        let pollInterval = null;
+
+        function cancelCurrentTask() {
+            if (!currentTaskId) return;
+            
+            if (confirm("Are you sure you want to cancel this download?")) {
+                const btn = document.getElementById('cancel-dl-btn');
+                btn.disabled = true;
+                btn.textContent = "Cancelling...";
+
+                fetch(`/cancel_task/${currentTaskId}/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (pollInterval) clearInterval(pollInterval);
+                        document.getElementById('dl-progress-container').classList.remove('active');
+                        document.getElementById('cancel-dl-btn').style.display = 'none';
+                        document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                        currentTaskId = null;
+                        pollInterval = null;
+                        
+                        // Reset cancel button state for next time
+                        btn.disabled = false;
+                        btn.textContent = "Cancel Download";
+                    })
+                    .catch(err => {
+                        console.error("Cancel failed", err);
+                        alert("Failed to cancel task. It may have already finished or failed.");
+                        btn.disabled = false;
+                        btn.textContent = "Cancel Download";
+                    });
+            }
+        }
+
         async function handleAsyncDownload(event) {
             event.preventDefault();
             const form = event.target;
@@ -491,6 +526,11 @@
             const titleText = document.getElementById('dl-title');
 
             container.classList.add('active');
+            const cancelBtn = document.getElementById('cancel-dl-btn');
+            cancelBtn.style.display = 'block';
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = "Cancel Download";
+
             bar.style.width = '0%';
             percentText.textContent = '0%';
             statusText.textContent = 'Starting download task...';
@@ -511,6 +551,7 @@
 
                 const data = await response.json();
                 if (data.task_id) {
+                    currentTaskId = data.task_id;
                     pollTaskStatus(data.task_id);
                 } else {
                     alert('Error: ' + (data.error || 'Failed to start download'));
@@ -526,7 +567,7 @@
         }
 
         function pollTaskStatus(taskId) {
-            const interval = setInterval(async () => {
+            pollInterval = setInterval(async () => {
                 try {
                     const response = await fetch(`/task_status/${taskId}/`);
                     const data = await response.json();
@@ -548,7 +589,9 @@
                         }
                         
                         if (data.state === 'SUCCESS') {
-                            clearInterval(interval);
+                            clearInterval(pollInterval);
+                            pollInterval = null;
+                            document.getElementById('cancel-dl-btn').style.display = 'none';
                             statusText.textContent = 'Complete! Your download should start now.';
                             titleText.textContent = data.result.title;
                             // Trigger final download
@@ -561,7 +604,9 @@
                             }, 5000);
                         }
                     } else if (data.state === 'FAILURE') {
-                        clearInterval(interval);
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        document.getElementById('cancel-dl-btn').style.display = 'none';
                         alert('Download failed: ' + (data.error || 'Unknown error'));
                         document.getElementById('dl-progress-container').classList.remove('active');
                         document.querySelectorAll('button').forEach(btn => btn.disabled = false);

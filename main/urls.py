@@ -12,6 +12,7 @@ urlpatterns = [
     path('initiate_download/', views.initiate_download, name='initiate_download'),
     path('task_status/<str:task_id>/', views.task_status, name='task_status'),
     path('download_ready/<str:task_id>/', views.get_downloaded_file, name='download_ready'),
+    path('cancel_task/<str:task_id>/', views.cancel_task, name='cancel_task'),
     path('<path:subpath>/', views.home_yt, name='home_yt'),
 ]
 

@@ -579,6 +579,12 @@ def get_downloaded_file(request, task_id):
     return JsonResponse({'error': 'Task not completed'}, status=400)
 
 
+def cancel_task(request, task_id):
+    res = AsyncResult(task_id)
+    res.revoke(terminate=True)
+    return JsonResponse({'status': 'Task cancelled'})
+
+
 def health(request):
     response = HttpResponse("OK", content_type="text/plain")
     response["Access-Control-Allow-Origin"] = "*"

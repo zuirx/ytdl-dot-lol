@@ -26,6 +26,8 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 def report_error(request, error_msg):
+    if 'No link provided' in error_msg: return
+
     messages.error(request, error_msg)
     ip = get_client_ip(request)
     

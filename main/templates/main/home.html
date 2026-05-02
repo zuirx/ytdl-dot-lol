@@ -145,7 +145,7 @@
                 {% csrf_token %}
                 <div class="results-container">
                     <h3>{{ final_title }}</h3>
-                    <p style="color: gray; font-size: 12px;">({{ final_url }})</p>
+                    <p style="color: var(--text-muted); font-size: 12px;">({{ final_url }})</p>
                     <input type="hidden" name="yt_link" value="{{ final_url }}">
                     
                     <h2>Video Options</h2>
@@ -362,7 +362,7 @@
                 btn.disabled = false;
                 btn.style.opacity = '1';
                 status.textContent = 'Ready to mix!';
-                status.style.color = 'var(--accent, #4caf50)';
+                status.style.color = 'var(--accent-text, #4caf50)';
             } else {
                 btn.disabled = true;
                 btn.style.opacity = '0.5';

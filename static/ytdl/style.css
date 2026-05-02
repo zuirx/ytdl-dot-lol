@@ -6,9 +6,14 @@
     --text-muted: #94a3b8;
     --accent: #facc15;
     --accent-hover: #eab308;
+    --accent-text: #facc15;
     --border: #2d333b;
     --danger: #ff5f5f;
     --font-stack: system-ui, -apple-system, "Segoe UI", Roboto, "Bitstream Vera Sans", "DejaVu Sans", sans-serif;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    --link-color: #faf879;
+    --badge-bg: #334155;
+    --trans-bg: rgba(255, 255, 255, 0.03);
 }
 
 body.light-theme {
@@ -20,6 +25,11 @@ body.light-theme {
     --border: #e2e8f0;
     --accent: #facc15;
     --accent-hover: #eab308;
+    --accent-text: #a16207;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    --link-color: #ca8a04; /* Darker yellow/gold for better visibility on light bg */
+    --badge-bg: #e2e8f0;
+    --trans-bg: rgba(0, 0, 0, 0.03);
 }
 
 body {
@@ -44,7 +54,7 @@ h1 {
     font-size: 2.2rem;
     margin: 0;
     letter-spacing: -1px;
-    color: #fff;
+    color: var(--text-main);
 }
 
 .formlistyt {
@@ -76,7 +86,7 @@ h1 {
     padding: 12px 16px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--trans-bg);
 }
 
 .mix-status {
@@ -96,7 +106,7 @@ h1 {
     height: 44px;
     font-size: 1.2rem;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -116,12 +126,12 @@ h1 {
 }
 
 .subtitle a {
-    color: white;
+    color: var(--accent);
     text-decoration: none;
 }
 
 .gototop {
-    color: white;
+    color: var(--text-muted);
 }
 
 .main-card {
@@ -178,7 +188,7 @@ input[type="text"] {
     flex: 1;
     background: var(--bg-input);
     border: 1px solid var(--border);
-    color: #fff;
+    color: var(--text-main);
     padding: 12px 15px;
     border-radius: 6px;
     font-size: 1rem;
@@ -210,7 +220,7 @@ button {
 }
 
 .listlink {
-    color: #faf879;
+    color: var(--link-color);
     text-decoration: none;
 }
 
@@ -237,7 +247,7 @@ button {
 
 .btn-ghost:hover {
     border-color: var(--text-muted);
-    color: #fff;
+    color: var(--text-main);
 }
 
 .results-container {
@@ -249,7 +259,7 @@ button {
 h2 {
     font-size: 1.2rem;
     color: var(--text-muted);
-    border-left: 3px solid var(--accent);
+    border-left: 3px solid var(--accent-text);
     padding-left: 10px;
     margin-bottom: 15px;
 }
@@ -272,7 +282,7 @@ table {
 th {
     text-align: left;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--trans-bg);
     color: var(--text-muted);
     font-weight: 600;
     border-bottom: 1px solid var(--border);
@@ -288,7 +298,7 @@ tr:last-child td {
 }
 
 .badge {
-    background: #334155;
+    background: var(--badge-bg);
     padding: 2px 6px;
     border-radius: 6px;
     font-size: 0.75rem;
@@ -303,7 +313,7 @@ footer {
 }
 
 footer a {
-    color: var(--accent);
+    color: var(--accent-text);
     text-decoration: none;
 }
 
@@ -366,7 +376,7 @@ footer a {
 .donate-coin {
     font-size: 0.7rem;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--accent-text);
     min-width: 34px;
     letter-spacing: 0.05em;
 }
@@ -394,8 +404,8 @@ footer a {
 }
 
 .btn-copy:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--accent-text);
+    color: var(--accent-text);
 }
 
 @media (max-width: 550px) {
@@ -425,7 +435,7 @@ footer a {
     border-radius: 8px;
     padding: 15px;
     margin-top: 15px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow);
     animation: slideDown 0.3s ease-out;
 }
 
@@ -481,7 +491,7 @@ footer a {
 }
 
 .quality-btn:hover {
-    border-color: var(--accent);
+    border-color: var(--accent-text);
 }
 
 .quality-btn.active {
@@ -622,14 +632,14 @@ input:checked+.slider:before {
 }
 
 .playlist-item:hover {
-    border-color: var(--accent);
+    border-color: var(--accent-text);
     transform: translateX(4px);
 }
 
 .playlist-item input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    accent-color: var(--accent);
+    accent-color: var(--accent-text);
     cursor: pointer;
     flex-shrink: 0;
 }
@@ -649,7 +659,7 @@ input:checked+.slider:before {
 }
 
 .playlist-info a {
-    color: #faf879;
+    color: var(--link-color);
     text-decoration: none;
 }
 
@@ -681,7 +691,7 @@ input:checked+.slider:before {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    box-shadow: var(--shadow);
 }
 
 .playlist-actions {
@@ -718,5 +728,5 @@ input:checked+.slider:before {
 .select-all-label input {
     width: 16px;
     height: 16px;
-    accent-color: var(--accent);
+    accent-color: var(--accent-text);
 }

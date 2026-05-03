@@ -28,6 +28,7 @@
     {% safe_include 'main/ads_head.html' %}
     <link rel="shortcut icon" href="{% static 'ytdl/favicon.ico' %}" type="image/x-icon">
     <link rel="stylesheet" href="{% static 'ytdl/style.css' %}">
+    <script src="{% static 'ytdl/checkh.js' %}"></script>
 </head>
 <body class="{% if request.COOKIES.theme == '1' %}light-theme{% endif %}">
 
@@ -98,26 +99,17 @@
                         </div>
                     </div>
 
-                    <!-- <div class="settings-group">
-                        <label>Language</label>
-                        <select id="lang-select" name="lang_val">
-                            <option value="auto" {% if request.COOKIES.lang == 'auto' %}selected{% endif %}>Auto</option>
-                            <option value="en" {% if request.COOKIES.lang == 'en' %}selected{% endif %}>English</option>
-                            <option value="pt-br" {% if request.COOKIES.lang == 'pt-br' %}selected{% endif %}>Português</option>
-                            <option value="es" {% if request.COOKIES.lang == 'es' %}selected{% endif %}>Español</option>
-                        </select>
-                    </div> -->
-
-                    <!-- <div class="settings-group">
-                        <label>Quality Preset</label>
+                    <div class="settings-group">
+                        <label>Quality</label>
                         <div class="quality-buttons">
-                            <button type="button" class="quality-btn" onclick="setQuality('worst', this)" data-quality="worst">Worst</button>
-                            <button type="button" class="quality-btn" onclick="setQuality('bad', this)" data-quality="bad">Bad</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('worst', this)" data-quality="worst">Lowest</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('low', this)" data-quality="low">Low</button>
                             <button type="button" class="quality-btn" onclick="setQuality('medium', this)" data-quality="medium">Medium</button>
-                            <button type="button" class="quality-btn" onclick="setQuality('good', this)" data-quality="good">Good</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('high', this)" data-quality="high">High</button>
                             <button type="button" class="quality-btn" onclick="setQuality('best', this)" data-quality="best">Best</button>
                         </div>
-                    </div> -->
+                    </div>
+
                 </div>
 
                 <div style="margin-top: 20px; display: flex; justify-content: flex-end;">

@@ -3,22 +3,26 @@
 {% load i18n %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <title>YTDL.LOL | free online yt-dlp frontend</title>
     <meta name="title" content="YTDL.LOL | Free Online Video Downloader & yt-dlp Frontend">
-    <meta name="description" content="Fast and free online video downloader. Download videos and music from YouTube and any site in MP4 or MP3 format using the power of yt-dlp. No registration required.">
-    <meta name="keywords" content="youtube downloader, yt-dlp online, download youtube mp4, convert youtube to mp3, free video downloader, ytdl frontend">
+    <meta name="description"
+        content="Fast and free online video downloader. Download videos and music from YouTube and any site in MP4 or MP3 format using the power of yt-dlp. No registration required.">
+    <meta name="keywords"
+        content="youtube downloader, yt-dlp online, download youtube mp4, convert youtube to mp3, free video downloader, ytdl frontend">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://ytdl.lol/">
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://ytdl.lol/">
     <meta property="og:title" content="YTDL.LOL | free online yt-dlp frontend downloader">
-    <meta property="og:description" content="Download high-quality videos and audio from the web for free. Powered by yt-dlp for maximum reliability.">
+    <meta property="og:description"
+        content="Download high-quality videos and audio from the web for free. Powered by yt-dlp for maximum reliability.">
 
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://ytdl.lol/">
@@ -29,21 +33,23 @@
     <link rel="shortcut icon" href="{% static 'ytdl/favicon.ico' %}" type="image/x-icon">
     <link rel="stylesheet" href="{% static 'ytdl/style.css' %}">
 </head>
+
 <body class="{% if request.COOKIES.theme == '1' %}light-theme{% endif %}">
 
     <header>
         <img src="{% static 'ytdl/logo.png' %}" alt="ytdl.lol" id="logo">
-        <div class="subtitle">web content downloader, just a <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> frontend</div>
+        <div class="subtitle">web content downloader, just a <a href="https://github.com/yt-dlp/yt-dlp"
+                target="_blank">yt-dlp</a> frontend</div>
     </header>
 
     <main class="main-card">
         {% if messages %}
-            {% for m in messages %}
-                <div class="message_sv {{ m.tags }}">
-                    <span>{{ m }}</span>
-                    <button type="button" class="message-close" onclick="this.parentElement.remove()">×</button>
-                </div>
-            {% endfor %}
+        {% for m in messages %}
+        <div class="message_sv {{ m.tags }}">
+            <span>{{ m }}</span>
+            <button type="button" class="message-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+        {% endfor %}
         {% endif %}
 
         <form method="POST" action="{% url 'home_yt' %}" id="main-download-form">
@@ -51,39 +57,58 @@
             <div class="input-row">
                 <input type="text" name="yt_link" id="yt_link" placeholder="URL" autocomplete="off">
                 <button type="button" class="btn-ghost" onclick="pasteFromClipboard()">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M19,2H14V4H19V18H5V4H10V2H5A2,2 0 0,0 3,4V18A2,2 0 0,0 5,20H19A2,2 0 0,0 21,18V4A2,2 0 0,0 19,2M12,2A2,2 0 0,1 14,4A2,2 0 0,1 12,6A2,2 0 0,1 10,4A2,2 0 0,1 12,2M15,11V13H9V11H15M15,7V9H9V7H15M15,15V17H9V15H15Z"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path
+                            d="M19,2H14V4H19V18H5V4H10V2H5A2,2 0 0,0 3,4V18A2,2 0 0,0 5,20H19A2,2 0 0,0 21,18V4A2,2 0 0,0 19,2M12,2A2,2 0 0,1 14,4A2,2 0 0,1 12,6A2,2 0 0,1 10,4A2,2 0 0,1 12,2M15,11V13H9V11H15M15,7V9H9V7H15M15,15V17H9V15H15Z" />
+                    </svg>
                     Paste
                 </button>
             </div>
-            
+
             <div class="actions-row">
                 <button type="submit" name="action" value="audio" class="btn-primary">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55a4 4 0 1 0 4 4V7h4V3h-6z" /></svg>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55a4 4 0 1 0 4 4V7h4V3h-6z" />
+                    </svg>
                     Best Audio
                 </button>
                 <button type="submit" name="action" value="video" class="btn-primary">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path
+                            d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z" />
+                    </svg>
                     Best Video
                 </button>
                 <button type="button" class="btn-ghost" onclick="toggleSettings()">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path
+                            d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+                    </svg>
                     Settings
                 </button>
 
                 <button type="submit" name="action" value="playlist">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M10,15L15.19,12L10,9V15M21.56,7.17C21.69,7.64 21.78,8.27 21.84,9.07C21.91,9.87 21.94,10.56 21.94,11.16L22,12C22,14.19 21.84,15.8 21.56,16.83C21.31,17.73 20.73,18.31 19.83,18.56C19.36,18.69 18.73,18.78 17.93,18.84C17.13,18.91 16.44,18.94 15.84,18.94L15,19C12.81,19 11.2,18.84 10.17,18.56C9.27,18.31 8.69,17.73 8.44,16.83C8.31,16.36 8.22,15.73 8.16,14.93C8.09,14.13 8.06,13.44 8.06,12.84L8,12C8,9.81 8.16,8.2 8.44,7.17C8.69,6.27 9.27,5.69 10.17,5.44C10.64,5.31 11.27,5.22 12.07,5.16C12.87,5.09 13.56,5.06 14.16,5.06L15,5C17.19,5 18.8,5.16 19.83,5.44C20.73,5.69 21.31,6.27 21.56,7.17Z"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path
+                            d="M10,15L15.19,12L10,9V15M21.56,7.17C21.69,7.64 21.78,8.27 21.84,9.07C21.91,9.87 21.94,10.56 21.94,11.16L22,12C22,14.19 21.84,15.8 21.56,16.83C21.31,17.73 20.73,18.31 19.83,18.56C19.36,18.69 18.73,18.78 17.93,18.84C17.13,18.91 16.44,18.94 15.84,18.94L15,19C12.81,19 11.2,18.84 10.17,18.56C9.27,18.31 8.69,17.73 8.44,16.83C8.31,16.36 8.22,15.73 8.16,14.93C8.09,14.13 8.06,13.44 8.06,12.84L8,12C8,9.81 8.16,8.2 8.44,7.17C8.69,6.27 9.27,5.69 10.17,5.44C10.64,5.31 11.27,5.22 12.07,5.16C12.87,5.09 13.56,5.06 14.16,5.06L15,5C17.19,5 18.8,5.16 19.83,5.44C20.73,5.69 21.31,6.27 21.56,7.17Z" />
+                    </svg>
                     YT Playlist Downloader
                 </button>
                 <button type="submit" name="action" value="info">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+                    </svg>
                     Pull Download Options
                 </button>
             </div>
 
             <div class="settings-panel" id="settings-panel">
-                <input type="hidden" name="theme_val" id="theme_val" value="{% if request.COOKIES.theme == '1' %}1{% else %}0{% endif %}">
-                <input type="hidden" name="video_quality" id="video_quality_val" value="{{ request.COOKIES.video_quality|default:'best' }}">
-                <input type="hidden" name="audio_quality" id="audio_quality_val" value="{{ request.COOKIES.audio_quality|default:'best' }}">
+                <input type="hidden" name="theme_val" id="theme_val"
+                    value="{% if request.COOKIES.theme == '1' %}1{% else %}0{% endif %}">
+                <input type="hidden" name="video_quality" id="video_quality_val"
+                    value="{{ request.COOKIES.video_quality|default:'best' }}">
+                <input type="hidden" name="audio_quality" id="audio_quality_val"
+                    value="{{ request.COOKIES.audio_quality|default:'best' }}">
 
                 <div class="settings-row">
                     <div class="settings-group">
@@ -101,11 +126,16 @@
                     <div class="settings-group">
                         <label>Quality</label>
                         <div class="quality-buttons">
-                            <button type="button" class="quality-btn" onclick="setQuality('worst', this)" data-quality="worst">Lowest</button>
-                            <button type="button" class="quality-btn" onclick="setQuality('low', this)" data-quality="low">Low</button>
-                            <button type="button" class="quality-btn" onclick="setQuality('medium', this)" data-quality="medium">Medium</button>
-                            <button type="button" class="quality-btn" onclick="setQuality('high', this)" data-quality="high">High</button>
-                            <button type="button" class="quality-btn" onclick="setQuality('best', this)" data-quality="best">Best</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('worst', this)"
+                                data-quality="worst">Lowest</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('low', this)"
+                                data-quality="low">Low</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('medium', this)"
+                                data-quality="medium">Medium</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('high', this)"
+                                data-quality="high">High</button>
+                            <button type="button" class="quality-btn" onclick="setQuality('best', this)"
+                                data-quality="best">Best</button>
                         </div>
                     </div>
 
@@ -118,7 +148,7 @@
                 </div>
             </div>
         </form>
-        
+
         <!-- progress bar container -->
         <div class="progress-container" id="dl-progress-container">
             <div class="progress-label">
@@ -129,179 +159,203 @@
                 <div class="progress-bar-fill" id="dl-bar"></div>
             </div>
             <div class="progress-status" id="dl-status">Waiting for worker...</div>
-            <button type="button" id="cancel-dl-btn" class="btn-ghost" onclick="cancelCurrentTask()" style="margin-top: 15px; width: 100%; font-size: 0.8rem; display: none;">Cancel Download</button>
+            <button type="button" id="cancel-dl-btn" class="btn-ghost" onclick="cancelCurrentTask()"
+                style="margin-top: 15px; width: 100%; font-size: 0.8rem; display: none;">Cancel Download</button>
         </div>
 
-        {% if dl_opts %}
-            <form method="POST" action="{% url 'mix_av' %}" id="mix-form">
-                {% csrf_token %}
-                <div class="results-container">
-                    <h3>{{ final_title }}</h3>
-                    <p style="color: var(--text-muted); font-size: 12px;">({{ final_url }})</p>
-                    <input type="hidden" name="yt_link" value="{{ final_url }}">
-                    
-                    <h2>Video Options</h2>
-                    <div class="scroll-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Ext</th>
-                                    <th>Res</th>
-                                    <th>FPS</th>
-                                    <th>Codec</th>
-                                    <th>Size</th>
-                                    <th>Action</th>
-                                    <th>Mix</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for format_id, f in dl_opts.video.items %}
-                                <tr>
-                                    <td><span class="badge">{{ f.ext }}</span></td>
-                                    <td>{{ f.resolution }}</td>
-                                    <td>{{ f.fps }}</td>
-                                    <td>{{ f.vcodec|truncatechars:12 }}</td>
-                                    <td>{{ f.filesize|default:"?" }}</td>
-                                    <td>
-                                        <form method="POST" action="{% url 'dl_from_opt' %}">
-                                            {% csrf_token %}
-                                            <button type="submit" name="action" value="{{ format_id }} - {{ f.url }} - {{ f.ext }}" class="btn-primary" style="padding: 5px 10px; font-size: 0.75rem;">
-                                                Download
-                                            </button>
-                                        </form>
-                                    </td>
-                                    <td><input type="checkbox" id="{{ format_id }}_vcheck" name="{{ format_id }}_vcheck"></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+        <p class="button-agree">by clicking in any of the buttons, <br> you agree with the <a href="{% url 'terms-privacy' %}">Terms of Service & Privacy Policy</a>.</p>
         
-                    <h2>Audio Options</h2>
-                    <div class="scroll-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Ext</th>
-                                    <th>A-Codec</th>
-                                    <th>Size</th>
-                                    <th>Action</th>
-                                    <th>Mix</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for format_id, f in dl_opts.audio.items %}
-                                <tr>
-                                    <td><span class="badge">{{ f.ext }}</span></td>
-                                    <td>{{ f.acodec }}</td>
-                                    <td>{{ f.filesize|default:"?" }}</td>
-                                    <td>
-                                        <form method="POST" action="{% url 'dl_from_opt' %}">
-                                            {% csrf_token %}
-                                            <button type="submit" name="action" value="{{ format_id }} - {{ f.url }} - {{ f.ext }}" class="btn-primary" style="padding: 5px 10px; font-size: 0.75rem;">
-                                                Download
-                                            </button>
-                                        </form>
-                                    </td>
-                                    <td><input type="checkbox" id="{{ format_id }}_acheck" name="{{ format_id }}_acheck"></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+        {% if dl_opts %}
+        <form method="POST" action="{% url 'mix_av' %}" id="mix-form">
+            {% csrf_token %}
+            <div class="results-container">
+                <h3>{{ final_title }}</h3>
+                <p style="color: var(--text-muted); font-size: 12px;">({{ final_url }})</p>
+                <input type="hidden" name="yt_link" value="{{ final_url }}">
 
-                    <div class="mix-bar">
-                        <button type="button" class="btn-primary" id="mix-btn" onclick="submitMix()">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55a4 4 0 1 0 4 4V7h4V3h-6z" /></svg>
-                            +
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/></svg>
-                            Mix &amp; Download
-                        </button>
-                        <span class="mix-status" id="mix-status">Select 1 video and 1 audio from the tables above.</span>
-                    </div>
-
-                    <h2>Subtitles / Transcripts</h2>
-                    <div class="scroll-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Lang</th>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for sub in dl_opts.subtitles %}
-                                <tr>
-                                    <td><span class="badge">{{ sub.lang }}</span></td>
-                                    <td>{{ sub.name }}</td>
-                                    <td>{{ sub.type }}</td>
-                                    <td>
-                                        <form method="POST" action="{% url 'dl_from_opt' %}">
-                                            {% csrf_token %}
-                                            <button type="submit" name="action" value="sub:{{ sub.lang }} - {{ sub.url }} - srt" class="btn-primary" style="padding: 5px 10px; font-size: 0.75rem;">
-                                                Download .srt
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                {% if not dl_opts.subtitles %}
-                                <tr><td colspan="4" style="color: var(--text-muted); text-align: center; padding: 16px;">No subtitles available for this video.</td></tr>
-                                {% endif %}
-                            </tbody>
-                </table>
-                    </div>
+                <h2>Video Options</h2>
+                <div class="scroll-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ext</th>
+                                <th>Res</th>
+                                <th>FPS</th>
+                                <th>Codec</th>
+                                <th>Size</th>
+                                <th>Action</th>
+                                <th>Mix</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for format_id, f in dl_opts.video.items %}
+                            <tr>
+                                <td><span class="badge">{{ f.ext }}</span></td>
+                                <td>{{ f.resolution }}</td>
+                                <td>{{ f.fps }}</td>
+                                <td>{{ f.vcodec|truncatechars:12 }}</td>
+                                <td>{{ f.filesize|default:"?" }}</td>
+                                <td>
+                                    <form method="POST" action="{% url 'dl_from_opt' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" name="action"
+                                            value="{{ format_id }} - {{ f.url }} - {{ f.ext }}" class="btn-primary"
+                                            style="padding: 5px 10px; font-size: 0.75rem;">
+                                            Download
+                                        </button>
+                                    </form>
+                                </td>
+                                <td><input type="checkbox" id="{{ format_id }}_vcheck" name="{{ format_id }}_vcheck">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-            </form>
-            <button type="button" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
+
+                <h2>Audio Options</h2>
+                <div class="scroll-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ext</th>
+                                <th>A-Codec</th>
+                                <th>Size</th>
+                                <th>Action</th>
+                                <th>Mix</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for format_id, f in dl_opts.audio.items %}
+                            <tr>
+                                <td><span class="badge">{{ f.ext }}</span></td>
+                                <td>{{ f.acodec }}</td>
+                                <td>{{ f.filesize|default:"?" }}</td>
+                                <td>
+                                    <form method="POST" action="{% url 'dl_from_opt' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" name="action"
+                                            value="{{ format_id }} - {{ f.url }} - {{ f.ext }}" class="btn-primary"
+                                            style="padding: 5px 10px; font-size: 0.75rem;">
+                                            Download
+                                        </button>
+                                    </form>
+                                </td>
+                                <td><input type="checkbox" id="{{ format_id }}_acheck" name="{{ format_id }}_acheck">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mix-bar">
+                    <button type="button" class="btn-primary" id="mix-btn" onclick="submitMix()">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55a4 4 0 1 0 4 4V7h4V3h-6z" />
+                        </svg>
+                        +
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path
+                                d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z" />
+                        </svg>
+                        Mix &amp; Download
+                    </button>
+                    <span class="mix-status" id="mix-status">Select 1 video and 1 audio from the tables above.</span>
+                </div>
+
+                <h2>Subtitles / Transcripts</h2>
+                <div class="scroll-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Lang</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in dl_opts.subtitles %}
+                            <tr>
+                                <td><span class="badge">{{ sub.lang }}</span></td>
+                                <td>{{ sub.name }}</td>
+                                <td>{{ sub.type }}</td>
+                                <td>
+                                    <form method="POST" action="{% url 'dl_from_opt' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" name="action"
+                                            value="sub:{{ sub.lang }} - {{ sub.url }} - srt" class="btn-primary"
+                                            style="padding: 5px 10px; font-size: 0.75rem;">
+                                            Download .srt
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not dl_opts.subtitles %}
+                            <tr>
+                                <td colspan="4" style="color: var(--text-muted); text-align: center; padding: 16px;">No
+                                    subtitles available for this video.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </form>
+        <button type="button" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
+            title="Back to top">↑</button>
         {% endif %}
 
         {% if listvid %}
-            <form method="POST" action="{% url 'dl_sel_playlist_yt' %}" class="formlistyt">
-                {% csrf_token %}
-                
-                <div class="playlist-controls">
-                    <div class="playlist-actions">
-                        <button type="submit" class="btn-primary" id="buttonzipdl">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></svg>
-                            Download & ZIP Selected
-                        </button>
-                        <div class="radio-group">
-                            <label>
-                                <input type="radio" name="download_type" value="audio" checked> Audio
-                            </label>
-                            <label>
-                                <input type="radio" name="download_type" value="video"> Video
-                            </label>
-                        </div>
+        <form method="POST" action="{% url 'dl_sel_playlist_yt' %}" class="formlistyt">
+            {% csrf_token %}
+
+            <div class="playlist-controls">
+                <div class="playlist-actions">
+                    <button type="submit" class="btn-primary" id="buttonzipdl">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+                        </svg>
+                        Download & ZIP Selected
+                    </button>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="download_type" value="audio" checked> Audio
+                        </label>
+                        <label>
+                            <input type="radio" name="download_type" value="video"> Video
+                        </label>
                     </div>
-                    <label class="select-all-label">
-                        <input type="checkbox" id="select-all"> <strong>Select All</strong>
-                    </label>
                 </div>
+                <label class="select-all-label">
+                    <input type="checkbox" id="select-all"> <strong>Select All</strong>
+                </label>
+            </div>
 
-                <div class="playlist-items">
-                    {% for v in listvid %}
-                        <div class="playlist-item" onclick="const cb = this.querySelector('.video-checkbox'); if(event.target !== cb) cb.click();">
-                            <input type="checkbox" name="selected_videos" value="{{ v.url }}" class="video-checkbox">
-                            <div class="playlist-info">
-                                {{ v.title|safe }}
-                            </div>
-                        </div>
-                    {% endfor %}
+            <div class="playlist-items">
+                {% for v in listvid %}
+                <div class="playlist-item"
+                    onclick="const cb = this.querySelector('.video-checkbox'); if(event.target !== cb) cb.click();">
+                    <input type="checkbox" name="selected_videos" value="{{ v.url }}" class="video-checkbox">
+                    <div class="playlist-info">
+                        {{ v.title|safe }}
+                    </div>
                 </div>
+                {% endfor %}
+            </div>
 
-                <div style="margin-top: 30px; text-align: center;">
-                    <a href="#logo" class="gototop" style="text-decoration: none; font-size: 0.85rem; color: var(--text-muted);">
-                        ↑ Back to Top
-                    </a>
-                </div>
-            </form>
+            <div style="margin-top: 30px; text-align: center;">
+                <a href="#logo" class="gototop"
+                    style="text-decoration: none; font-size: 0.85rem; color: var(--text-muted);">
+                    ↑ Back to Top
+                </a>
+            </div>
+        </form>
         {% endif %}
     </main>
-       
+
     <footer>
         <div class="donate-card">
             <p class="donate-hint">any donation would be greatly appreciated, to make this exist for longer ;)</p>
@@ -322,7 +376,8 @@
         {% comment %}
         <div class="donate-card">
             <div style="text-align: center;">
-                <p class="donate-hint">if you can't donate, consider viewing this ad once, by disabling ad blocker for a moment</p>
+                <p class="donate-hint">if you can't donate, consider viewing this ad once, by disabling ad blocker for a
+                    moment</p>
                 <br>
                 {% safe_include 'main/ads_body.html' %}
             </div>
@@ -330,15 +385,19 @@
         {% endcomment %}
         <br>
         {% if lastup %}
-            <span>Last commit: {{lastup}} {% if lastuptxt %} "{{lastuptxt}}" {% endif %} {% if lastuptdy %} <span class="alert-up">!</span> {% endif %}</span>
+        <span>Last commit: {{lastup}} {% if lastuptxt %} "{{lastuptxt}}" {% endif %} {% if lastuptdy %} <span
+                class="alert-up">!</span> {% endif %}</span>
         {% endif %}
         <br>
         {% if ytdlpver %}
-            <span>current yt-dlp version: {{ytdlpver}}</span>
+        <span>current yt-dlp version: {{ytdlpver}}</span>
         {% endif %}
-        
-        <p>by <a href="https://zuirx.com">zuirx</a> (<a href="https://zuirx.com/c/ytdldotlol" target="_blank" rel="noopener">blog</a>) |
-        <a href="https://github.com/zuirx/ytdl-dot-lol">HOST YOUR OWN</a></p>
+
+        <p>by
+            <a href="https://zuirx.com">zuirx</a> (<a href="https://zuirx.com/c/ytdldotlol" target="_blank"
+                rel="noopener">blog</a>) |
+            <a href="https://github.com/zuirx/ytdl-dot-lol" target="_blank" rel="noopener">HOST YOUR OWN</a>
+        </p>
     </footer>
 
     <!-- mix av validation -->
@@ -346,7 +405,7 @@
         function updateMixStatus() {
             const vChecked = document.querySelectorAll('input[id$="_vcheck"]:checked');
             const aChecked = document.querySelectorAll('input[id$="_acheck"]:checked');
-            const btn    = document.getElementById('mix-btn');
+            const btn = document.getElementById('mix-btn');
             const status = document.getElementById('mix-status');
             if (!btn) return;
             const v = vChecked.length, a = aChecked.length;
@@ -402,7 +461,7 @@
         const videoCheckboxes = document.querySelectorAll('.video-checkbox');
 
         if (selectAllBox) {
-            selectAllBox.addEventListener('change', function() {
+            selectAllBox.addEventListener('change', function () {
                 videoCheckboxes.forEach(checkbox => {
                     checkbox.checked = this.checked;
                 });
@@ -410,7 +469,7 @@
         }
 
         videoCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
+            checkbox.addEventListener('change', function () {
                 if (!this.checked) {
                     if (selectAllBox) selectAllBox.checked = false;
                 }
@@ -469,7 +528,7 @@
 
         function cancelCurrentTask() {
             if (!currentTaskId) return;
-            
+
             if (confirm("Are you sure you want to cancel this download?")) {
                 const btn = document.getElementById('cancel-dl-btn');
                 btn.disabled = true;
@@ -484,7 +543,7 @@
                         document.querySelectorAll('button').forEach(btn => btn.disabled = false);
                         currentTaskId = null;
                         pollInterval = null;
-                        
+
                         // Reset cancel button state for next time
                         btn.disabled = false;
                         btn.textContent = "Cancel Download";
@@ -502,7 +561,7 @@
             event.preventDefault();
             const form = event.target;
             const formData = new FormData(form);
-            
+
             // Get the clicked button's value if it exists
             const submitter = event.submitter;
             if (submitter && submitter.name === 'action') {
@@ -526,7 +585,7 @@
             percentText.textContent = '0%';
             statusText.textContent = 'Starting download task...';
             titleText.textContent = 'Initializing...';
-            
+
             // Disable all buttons in the form to prevent multiple clicks
             const buttons = form.querySelectorAll('button');
             buttons.forEach(btn => btn.disabled = true);
@@ -572,13 +631,13 @@
                         const p = data.percent || 0;
                         bar.style.width = p + '%';
                         percentText.textContent = Math.round(p) + '%';
-                        
+
                         if (data.state === 'PROGRESS') {
                             statusText.textContent = data.status || 'Downloading in background...';
                         } else {
                             statusText.textContent = 'Finishing up...';
                         }
-                        
+
                         if (data.state === 'SUCCESS') {
                             clearInterval(pollInterval);
                             pollInterval = null;
@@ -587,7 +646,7 @@
                             titleText.textContent = data.result.title;
                             // Trigger final download
                             window.location.href = `/download_ready/${taskId}/`;
-                            
+
                             // Reset UI after a delay
                             setTimeout(() => {
                                 document.getElementById('dl-progress-container').classList.remove('active');
@@ -634,4 +693,5 @@
     </script>
 
 </body>
+
 </html>

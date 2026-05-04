@@ -27,7 +27,8 @@ body.light-theme {
     --accent-hover: #eab308;
     --accent-text: #a16207;
     --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    --link-color: #ca8a04; /* Darker yellow/gold for better visibility on light bg */
+    --link-color: #ca8a04;
+    /* Darker yellow/gold for better visibility on light bg */
     --badge-bg: #e2e8f0;
     --trans-bg: rgba(0, 0, 0, 0.03);
 }
@@ -361,6 +362,18 @@ footer a {
     margin: 0 0 4px;
     font-size: 0.78rem;
     color: var(--text-muted);
+}
+
+.button-agree {
+    text-align: center;
+    margin: 0 0 4px;
+    font-size: 0.78rem;
+    padding-top: 12px;
+    color: var(--text-muted);
+}
+
+.button-agree a {
+    color: var(--accent);
 }
 
 .donate-address {
@@ -729,4 +742,118 @@ input:checked+.slider:before {
     width: 16px;
     height: 16px;
     accent-color: var(--accent-text);
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    background-color: var(--bg-card);
+    margin: 5% auto;
+    padding: 30px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 80%;
+    max-width: 700px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: var(--shadow);
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+}
+
+.modal-header h2 {
+    margin: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+    color: var(--text-main);
+}
+
+.close-modal {
+    color: var(--text-muted);
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.close-modal:hover {
+    color: var(--accent);
+}
+
+.modal-body {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-main);
+}
+
+.modal-body h3 {
+    color: var(--accent-text);
+    margin-top: 24px;
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+}
+
+.modal-body p {
+    margin-bottom: 16px;
+}
+
+.modal-body ul {
+    margin-bottom: 16px;
+    padding-left: 20px;
+}
+
+.modal-body li {
+    margin-bottom: 8px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 90%;
+        margin: 10% auto;
+        padding: 20px;
+    }
 }

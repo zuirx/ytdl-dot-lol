@@ -9,7 +9,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-MAX_VIDEO_DURATION = 7200  # 2 hours in seconds
+# Constants are now in settings.py
 
 def zip_folder_task(folder_path, output_path):
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -19,8 +19,34 @@ def zip_folder_task(folder_path, output_path):
                 arcname   = os.path.relpath(file_path, os.path.dirname(folder_path))
                 zipf.write(file_path, arcname)
 
+def get_format_for_quality(type, quality):
+    if type == 'video':
+        match quality:
+            case 'worst':
+                return 'worstvideo+worstaudio/worst'
+            case 'low':
+                return 'bestvideo[height<=360]+bestaudio/best[height<=360]'
+            case 'medium':
+                return 'bestvideo[height<=480]+bestaudio/best[height<=480]'
+            case 'high':
+                return 'bestvideo[height<=720]+bestaudio/best[height<=720]'
+            case _:
+                return 'bestvideo+bestaudio/best'
+    else: # audio
+        match quality:
+            case 'worst':
+                return 'worstaudio/worst'
+            case 'low':
+                return 'bestaudio[abr<=64]/best'
+            case 'medium':
+                return 'bestaudio[abr<=128]/best'
+            case 'high':
+                return 'bestaudio[abr<=192]/best'
+            case _:
+                return 'bestaudio/best'
+
 @shared_task(bind=True)
-def download_playlist_task(self, video_urls, download_type='audio', output_dir='content-playlist'):
+def download_playlist_task(self, video_urls, download_type='audio', quality='best', output_dir='content-playlist'):
     os.makedirs(output_dir, exist_ok=True)
     task_id = self.request.id
     pl_temp_dir = os.path.join(output_dir, task_id)
@@ -30,7 +56,7 @@ def download_playlist_task(self, video_urls, download_type='audio', output_dir='
     
     if download_type == 'audio':
         params = {
-            'format':  'bestaudio/best',
+            'format':  get_format_for_quality('audio', quality),
             'postprocessors': [{
                 'key':              'FFmpegExtractAudio',
                 'preferredcodec':   'mp3',
@@ -42,7 +68,7 @@ def download_playlist_task(self, video_urls, download_type='audio', output_dir='
         }
     else:
         params = {
-            'format':              'bestvideo+bestaudio/best',
+            'format':              get_format_for_quality('video', quality),
             'merge_output_format': 'mp4',
             'outtmpl':             f'{pl_temp_dir}/%(title)s.%(ext)s',
             'quiet':               True,
@@ -61,7 +87,7 @@ def download_playlist_task(self, video_urls, download_type='audio', output_dir='
                 # Check duration before download
                 info = ydl.extract_info(v_url, download=False)
                 duration = info.get('duration', 0)
-                if duration > MAX_VIDEO_DURATION:
+                if duration > settings.MAX_VIDEO_DURATION:
                     logger.warning(f"Skipping video {v_url} because it exceeds duration limit.")
                     continue
                 ydl.download([v_url])
@@ -89,7 +115,7 @@ def download_playlist_task(self, video_urls, download_type='audio', output_dir='
     }
 
 @shared_task(bind=True)
-def download_video_task(self, url, type='video', itag=0, typeitag='', output_dir='content-downloads'):
+def download_video_task(self, url, type='video', itag=0, typeitag='', quality='best', output_dir='content-downloads'):
     
     os.makedirs(output_dir, exist_ok=True)
     
@@ -97,10 +123,10 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', output_dir
     
     match type:
         case 'video':
-            dl_format = 'bestvideo+bestaudio/best'
+            dl_format = get_format_for_quality('video', quality)
             filetype  = 'mp4'
         case 'audio':
-            dl_format = 'bestaudio'
+            dl_format = get_format_for_quality('audio', quality)
             filetype  = 'mp3'
         case 'transcript' | 'subtitle':
             dl_format = None
@@ -163,8 +189,8 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', output_dir
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             duration = info.get('duration', 0)
-            if duration > MAX_VIDEO_DURATION:
-                raise ValueError(f"Video is too long ({round(duration/3600, 1)}h). Max limit is {int(MAX_VIDEO_DURATION/3600)}h.")
+            if duration > settings.MAX_VIDEO_DURATION:
+                raise ValueError(f"Video is too long ({round(duration/3600, 1)}h). Max limit is {int(settings.MAX_VIDEO_DURATION/3600)}h.")
     except Exception as e:
         if "Video is too long" in str(e): raise
         # If it's another error, we'll let the main download try and catch it (it might be a playlist/unsupported URL)

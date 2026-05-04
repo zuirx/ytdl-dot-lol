@@ -12,6 +12,8 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['ytdl.lol','www.ytdl.lol','m.ytdl.lol','127.0.0.1'] # <-- change this
 
+WHITENOISE_MAX_AGE = 31536000
+
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -139,3 +141,9 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0,
     },
 }
+
+# Application Constants
+MAX_VIDEO_DURATION = 7200  # 2 hours
+DIR_DOWNLOAD = 'content-downloads'
+DIR_MIX = 'content-mix'
+DIR_PLAYLIST = 'content-playlist'

@@ -12,6 +12,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+WHITENOISE_MAX_AGE = 31536000
+
 CORS_ALLOW_ALL_ORIGINS = True  
 
 STATIC_URL = 'static/'
@@ -112,3 +114,9 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0,
     },
 }
+
+# Application Constants
+MAX_VIDEO_DURATION = 7200  # 2 hours
+DIR_DOWNLOAD = 'content-downloads'
+DIR_MIX = 'content-mix'
+DIR_PLAYLIST = 'content-playlist'

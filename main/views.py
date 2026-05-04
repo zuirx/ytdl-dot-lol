@@ -12,12 +12,12 @@ from celery.result import AsyncResult
 from .tasks import download_video_task, download_playlist_task
 
 from django.core.cache import cache
+from django.conf import settings
 from .models import ErrorReport
 
 logger = logging.getLogger(__name__)
 
-MAX_VIDEO_DURATION = 7200
-MAX_DOWNLOADS_PER_HOUR = 50
+# Constants are now in settings.py
 
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -42,9 +42,9 @@ def report_error(request, error_msg):
     if not exists:
         ErrorReport.objects.create(pipv4=ip, date=timezone.now(), error=str(error_msg))
 
-DIR_DOWNLOAD = 'content-downloads'
-DIR_MIX      = 'content-mix'
-DIR_PLAYLIST = 'content-playlist'
+DIR_DOWNLOAD = settings.DIR_DOWNLOAD
+DIR_MIX      = settings.DIR_MIX
+DIR_PLAYLIST = settings.DIR_PLAYLIST
 GITREPOLINK  = 'https://api.github.com/repos/zuirx/ytdl-dot-lol/commits' # Change this for your fork!
 
 # ---------------------------------------------------------------------------
@@ -86,7 +86,7 @@ def home_yt(request, subpath=''):
     video_id = request.GET.get("v") or request.GET.get("watch")
 
     if "https://www.youtube.com/watch" in subpath:
-        return download_yt(request, subpath, video_id, "?v=")
+        return download_yt(request, subpath, video_id, middle="?v=")
     elif "https://youtu.be" in subpath:
         return download_yt(request, subpath)
 
@@ -162,8 +162,8 @@ def home_yt(request, subpath=''):
                     title = info.get('title')
                     duration = info.get('duration', 0)
 
-                    if duration > MAX_VIDEO_DURATION:
-                        report_error(request, f"Video is too long ({round(duration/3600, 1)}h). Maximum allowed is {int(MAX_VIDEO_DURATION/3600)} hours.")
+                    if duration > settings.MAX_VIDEO_DURATION:
+                        report_error(request, f"Video is too long ({round(duration/3600, 1)}h). Maximum allowed is {int(settings.MAX_VIDEO_DURATION/3600)} hours.")
                         return redirect('home_yt')
 
                     return render(request, 'main/home.html', {
@@ -379,13 +379,8 @@ def retrieve_playlist_yt(request, subpath):
     ]
 
 
-def zip_folder(folder_path, output_path):
-    with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(folder_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                arcname   = os.path.relpath(file_path, os.path.dirname(folder_path))
-                zipf.write(file_path, arcname)
+# zip_folder is now imported from .tasks or handled there
+from .tasks import zip_folder_task as zip_folder
 
 
 def dl_sel_playlist_yt(request):
@@ -495,6 +490,7 @@ def initiate_download(request):
     ip = get_client_ip(request)
     cache_key = f"dl_count_{ip}"
     dl_count = cache.get(cache_key, 0)
+    MAX_DOWNLOADS_PER_HOUR = 50 # Keep local if preferred or move to settings later
 
     if dl_count >= MAX_DOWNLOADS_PER_HOUR:
         return JsonResponse({'error': f'Rate limit exceeded. Maximum {MAX_DOWNLOADS_PER_HOUR} downloads per hour allowed.'}, status=429)
@@ -503,13 +499,16 @@ def initiate_download(request):
     action = request.POST.get('action')
     selected_videos = request.POST.getlist('selected_videos')
     download_type = request.POST.get("download_type", 'audio')
+    v_quality = request.POST.get('video_quality', 'best')
+    a_quality = request.POST.get('audio_quality', 'best')
 
     # If everything is okay, increment the count in cache
     cache.set(cache_key, dl_count + 1, 3600) # 1 hour timeout
 
     if selected_videos:
         list_vids = [v.split('<a href="')[1].split('"')[0] for v in selected_videos]
-        task = download_playlist_task.delay(list_vids, download_type=download_type)
+        q = v_quality if download_type == 'video' else a_quality
+        task = download_playlist_task.delay(list_vids, download_type=download_type, quality=q)
         return JsonResponse({'task_id': task.id})
 
     itag = 0
@@ -532,7 +531,8 @@ def initiate_download(request):
     if not url:
         return JsonResponse({'error': 'No link provided.'}, status=400)
 
-    task = download_video_task.delay(url, type=type, itag=itag, typeitag=typeitag)
+    q = v_quality if type == 'video' else a_quality
+    task = download_video_task.delay(url, type=type, itag=itag, typeitag=typeitag, quality=q)
     return JsonResponse({'task_id': task.id})
 
 

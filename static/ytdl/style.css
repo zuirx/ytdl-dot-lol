@@ -857,3 +857,74 @@ input:checked+.slider:before {
         padding: 20px;
     }
 }
+
+/* Legal Pages */
+.legal-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.legal-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: var(--shadow);
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 30px;
+}
+
+.legal-card h1 {
+    font-size: 2rem;
+    margin-top: 0;
+    margin-bottom: 24px;
+    color: var(--text-main);
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 10px;
+    display: inline-block;
+}
+
+.legal-card h3 {
+    color: var(--accent-text);
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-size: 1.25rem;
+}
+
+.legal-card p {
+    margin-bottom: 16px;
+    color: var(--text-main);
+    opacity: 0.9;
+}
+
+.legal-card ul {
+    margin-bottom: 20px;
+    padding-left: 20px;
+}
+
+.legal-card li {
+    margin-bottom: 10px;
+    color: var(--text-main);
+    opacity: 0.9;
+}
+
+.back-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: var(--accent);
+}

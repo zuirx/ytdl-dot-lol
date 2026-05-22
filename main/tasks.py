@@ -121,19 +121,24 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
     
     video_id = 'dl_' + self.request.id
     
-    match type:
-        case 'video':
-            dl_format = get_format_for_quality('video', quality)
-            filetype  = 'mp4'
-        case 'audio':
-            dl_format = get_format_for_quality('audio', quality)
-            filetype  = 'mp3'
-        case 'transcript' | 'subtitle':
-            dl_format = None
-            filetype  = 'srt'
-        case _:
-            dl_format = 'bestaudio'
-            filetype  = 'mp3'
+    # Reddit specific handling for Best Video
+    if 'reddit.com' in url and type == 'video' and quality == 'best' and not itag:
+        dl_format = 'bestvideo+bestaudio/best'
+        filetype = 'mp4'
+    else:
+        match type:
+            case 'video':
+                dl_format = get_format_for_quality('video', quality)
+                filetype  = 'mp4'
+            case 'audio':
+                dl_format = get_format_for_quality('audio', quality)
+                filetype  = 'mp3'
+            case 'transcript' | 'subtitle':
+                dl_format = None
+                filetype  = 'srt'
+            case _:
+                dl_format = 'bestaudio'
+                filetype  = 'mp3'
 
     if itag and type not in ('transcript', 'subtitle'):
         dl_format = itag

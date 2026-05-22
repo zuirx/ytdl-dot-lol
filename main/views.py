@@ -89,14 +89,18 @@ def _download_reddit_best_video(url, output_dir, video_id, request, noreturn=Fal
         best_v = None
         for f in formats:
             if f.get('vcodec') != 'none' and f.get('acodec') == 'none':
-                if best_v is None or f.get('filesize', 0) or 0 > (best_v.get('filesize', 0) or 0):
+                f_size = f.get('filesize') or 0
+                best_v_size = best_v.get('filesize', 0) if best_v else 0
+                if best_v is None or f_size > best_v_size:
                     best_v = f
         
         # Find best audio-only format
         best_a = None
         for f in formats:
             if f.get('vcodec') == 'none' and f.get('acodec') != 'none':
-                if best_a is None or f.get('filesize', 0) or 0 > (best_a.get('filesize', 0) or 0):
+                f_size = f.get('filesize') or 0
+                best_a_size = best_a.get('filesize', 0) if best_a else 0
+                if best_a is None or f_size > best_a_size:
                     best_a = f
         
         v_itag = best_v.get('format_id') if best_v else None

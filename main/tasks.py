@@ -60,12 +60,16 @@ def _download_reddit_best_video(url, output_dir, video_id):
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
         try:
-            return info['requested_downloads'][0]['filepath']
+            # Use the actual filepath from the info dict if available
+            if 'requested_downloads' in info and info['requested_downloads']:
+                return info['requested_downloads'][0]['filepath']
+            return ydl.prepare_filename(info)
         except Exception:
             raise RuntimeError('Could not determine downloaded file path for Reddit stream.')
 
-    video_file = _download_stream('hls-1229_vcheck', video_template)
-    audio_file = _download_stream('dash-5_acheck', audio_template)
+    # Use 'bestvideo' and 'bestaudio' instead of hardcoded itags
+    video_file = _download_stream('bestvideo', video_template)
+    audio_file = _download_stream('bestaudio', audio_template)
     final_path = os.path.join(output_dir, f'{video_id}.mp4')
 
     command = [

@@ -81,8 +81,8 @@ threading.Thread(target=_cleanup_loop, daemon=True).start()
 def _download_reddit_best_video(url, output_dir, video_id, request, noreturn=False):
     os.makedirs(output_dir, exist_ok=True)
 
-    video_file = download_yt(request, subpath=url, itag='hls-1229_vcheck', noreturn=True, custom_output_dir=output_dir, filename=f'{video_id}_video')
-    audio_file = download_yt(request, subpath=url, itag='dash-5_acheck', type='audio', noreturn=True, custom_output_dir=output_dir, filename=f'{video_id}_audio')
+    video_file = download_yt(request, subpath=url, itag='hls-1229', noreturn=True, custom_output_dir=output_dir, filename=f'{video_id}_video')
+    audio_file = download_yt(request, subpath=url, itag='dash-5', type='audio', noreturn=True, custom_output_dir=output_dir, filename=f'{video_id}_audio')
     output_final = os.path.join(output_dir, f'{video_id}.mp4')
 
     command = [

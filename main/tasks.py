@@ -45,6 +45,47 @@ def get_format_for_quality(type, quality):
             case _:
                 return 'bestaudio/best'
 
+def _download_reddit_best_video(url, output_dir, video_id):
+    os.makedirs(output_dir, exist_ok=True)
+
+    video_template = os.path.join(output_dir, f'{video_id}_video.%(ext)s')
+    audio_template = os.path.join(output_dir, f'{video_id}_audio.%(ext)s')
+
+    def _download_stream(format_selector, outtmpl):
+        opts = {
+            'quiet': True,
+            'format': format_selector,
+            'outtmpl': outtmpl,
+        }
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+        try:
+            return info['requested_downloads'][0]['filepath']
+        except Exception:
+            raise RuntimeError('Could not determine downloaded file path for Reddit stream.')
+
+    video_file = _download_stream('hls-1229_vcheck', video_template)
+    audio_file = _download_stream('dash-5_acheck', audio_template)
+    final_path = os.path.join(output_dir, f'{video_id}.mp4')
+
+    command = [
+        'ffmpeg', '-y',
+        '-i', video_file,
+        '-i', audio_file,
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        final_path,
+    ]
+
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f'FFmpeg error: {e.stderr or e.stdout}')
+
+    return final_path
+
 @shared_task(bind=True)
 def download_playlist_task(self, video_urls, download_type='audio', quality='best', output_dir='content-playlist'):
     os.makedirs(output_dir, exist_ok=True)
@@ -120,9 +161,9 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
     os.makedirs(output_dir, exist_ok=True)
     
     video_id = 'dl_' + self.request.id
-    
-    # Reddit specific handling for Best Video
-    if 'reddit.com' in url and type == 'video' and quality == 'best' and not itag:
+    reddit_best = 'reddit.com' in url and type == 'video' and quality == 'best' and not itag
+
+    if reddit_best:
         dl_format = 'bestvideo+bestaudio/best'
         filetype = 'mp4'
     else:
@@ -190,15 +231,26 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
             })
 
     # Pre-check duration
+    title = video_id
     try:
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             duration = info.get('duration', 0)
             if duration > settings.MAX_VIDEO_DURATION:
                 raise ValueError(f"Video is too long ({round(duration/3600, 1)}h). Max limit is {int(settings.MAX_VIDEO_DURATION/3600)}h.")
+            title = info.get('title') or video_id
     except Exception as e:
         if "Video is too long" in str(e): raise
         # If it's another error, we'll let the main download try and catch it (it might be a playlist/unsupported URL)
+
+    if reddit_best:
+        final_path = _download_reddit_best_video(url, output_dir, video_id)
+        return {
+            'status': 'Finished',
+            'file_path': final_path,
+            'title': title,
+            'ext': 'mp4'
+        }
 
     ydl_opts = {
         'quiet':               True,

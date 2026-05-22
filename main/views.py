@@ -77,6 +77,38 @@ def _cleanup_loop():
 
 threading.Thread(target=_cleanup_loop, daemon=True).start()
 
+
+def _download_reddit_best_video(url, output_dir, video_id, request, noreturn=False):
+    os.makedirs(output_dir, exist_ok=True)
+
+    video_file = download_yt(request, subpath=url, itag='hls-1229_vcheck', noreturn=True, custom_output_dir=output_dir, filename=f'{video_id}_video')
+    audio_file = download_yt(request, subpath=url, itag='dash-5_acheck', type='audio', noreturn=True, custom_output_dir=output_dir, filename=f'{video_id}_audio')
+    output_final = os.path.join(output_dir, f'{video_id}.mp4')
+
+    command = [
+        'ffmpeg', '-y',
+        '-i', video_file,
+        '-i', audio_file,
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        output_final,
+    ]
+
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f'FFmpeg error: {e.stderr or e.stdout}')
+
+    if noreturn:
+        return output_final
+
+    _schedule_delete(video_file)
+    _schedule_delete(audio_file)
+    _schedule_delete(output_final)
+    return FileResponse(open(output_final, 'rb'), as_attachment=True, filename=f'{video_id}.mp4')
+
 # ---------------------------------------------------------------------------
 # Main functions
 # ---------------------------------------------------------------------------
@@ -238,7 +270,7 @@ def get_last_update_github():
             return commits[0]['commit']['committer']['date'], commits[0]['commit']['message']
 
 
-def download_yt(request, subpath='', video_id='', noreturn=False, middle='', type='video', itag=0, typeitag='', custom_output_dir='', filename=''):
+def download_yt(request, subpath='', video_id='', noreturn=False, middle='', type='video', itag=0, typeitag='', quality='best', custom_output_dir='', filename=''):
     url        = subpath + middle + video_id
     output_dir = custom_output_dir or DIR_DOWNLOAD
 
@@ -248,6 +280,9 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
         video_id = f'file{random.randrange(100000, 999999)}'
         if '?v=' in subpath and 'youtube.com' in subpath:
             video_id = subpath.split('?v=')[-1]
+
+    if 'reddit.com' in url and type == 'video' and quality == 'best' and not itag:
+        return _download_reddit_best_video(url, output_dir, video_id, request, noreturn=noreturn)
 
     match type:
         case 'video':

@@ -140,6 +140,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'main.tasks.update_ytdlp_task',
         'schedule': 3600.0,
     },
+    'cleanup-large-files-every-15-mins': {
+        'task': 'main.tasks.cleanup_large_files_task',
+        'schedule': 900.0,
+    },
 }
 
 # Application Constants

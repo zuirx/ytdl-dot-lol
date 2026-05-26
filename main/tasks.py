@@ -6,10 +6,65 @@ import shutil
 import subprocess
 from celery import shared_task
 from django.conf import settings
+import time
 
 logger = logging.getLogger(__name__)
 
 # Constants are now in settings.py
+
+@shared_task
+def cleanup_large_files_task():
+    """
+    Routine to remove very large files from content directories.
+    - Files > 500MB are removed if older than 30 minutes.
+    - Total storage limit of 100GB is enforced by removing oldest files.
+    """
+    dirs_to_clean = [settings.DIR_DOWNLOAD, settings.DIR_MIX, settings.DIR_PLAYLIST]
+    LARGE_FILE_THRESHOLD = 500 * 1024 * 1024  # 500 MB
+    TIME_THRESHOLD = 30 * 60  # 30 minutes
+    TOTAL_STORAGE_LIMIT = 100 * 1024 * 1024 * 1024  # 100 GB
+    
+    now = time.time()
+    all_files = []
+    current_total_size = 0
+
+    for d in dirs_to_clean:
+        if not os.path.exists(d):
+            continue
+        for root, _, files in os.walk(d):
+            for f in files:
+                path = os.path.join(root, f)
+                try:
+                    stat = os.stat(path)
+                    size = stat.st_size
+                    mtime = stat.st_mtime
+                    
+                    # Rule 1: Remove very large files older than 30 mins
+                    if size > LARGE_FILE_THRESHOLD and (now - mtime) > TIME_THRESHOLD:
+                        os.remove(path)
+                        logger.warning(f"Cleanup: Removed large file {path} (>500MB and >30m old)")
+                        continue
+                    
+                    all_files.append((path, mtime, size))
+                    current_total_size += size
+                except OSError:
+                    pass
+
+    # Rule 2: Enforce total storage limit of 100GB
+    if current_total_size > TOTAL_STORAGE_LIMIT:
+        logger.info(f"Cleanup: Total size {current_total_size} exceeds limit {TOTAL_STORAGE_LIMIT}. Purging oldest files.")
+        # Sort by mtime ascending (oldest first)
+        all_files.sort(key=lambda x: x[1])
+        
+        for path, mtime, size in all_files:
+            try:
+                os.remove(path)
+                current_total_size -= size
+                if current_total_size <= TOTAL_STORAGE_LIMIT:
+                    break
+                logger.warning(f"Cleanup: Purged old file {path} to free space")
+            except OSError:
+                pass
 
 def zip_folder_task(folder_path, output_path):
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:

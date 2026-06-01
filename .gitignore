@@ -196,3 +196,5 @@ main/templates/main/ads_body.html
 celerybeat-schedule.dir
 celerybeat-schedule.dat
 celerybeat-schedule.bak
+
+cookies.txt

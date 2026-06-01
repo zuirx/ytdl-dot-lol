@@ -10,6 +10,8 @@ import time
 
 logger = logging.getLogger(__name__)
 
+COOKIES_PATH = os.path.join(settings.BASE_DIR, 'cookies.txt')
+
 # Constants are now in settings.py
 
 @shared_task
@@ -175,6 +177,10 @@ def download_playlist_task(self, video_urls, download_type='audio', quality='bes
             'nocheckcertificate':  True,
         }
 
+    # Use cookies for YouTube videos if file exists
+    if video_urls and 'youtube.com' in video_urls[0] and os.path.exists(COOKIES_PATH):
+        params['cookiefile'] = COOKIES_PATH
+
     for i, v_url in enumerate(video_urls):
         current = i + 1
         self.update_state(state='PROGRESS', meta={
@@ -325,6 +331,11 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
         ],
         'merge_output_format': 'mp4' if (type == 'video' and not itag) else None,
     }
+
+    # Use cookies for +18 YouTube videos
+    if 'youtube.com' in url and os.path.exists(COOKIES_PATH):
+        ydl_opts['cookiefile'] = COOKIES_PATH
+    
     
     if type == 'audio':
         ydl_opts['postprocessors'].insert(0, {

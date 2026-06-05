@@ -1,0 +1,15 @@
+<br>
+{% if lastup %}
+<span>Last commit: {{lastup}} {% if lastuptxt %} "{{lastuptxt}}" {% endif %} {% if lastuptdy %} <span
+        class="alert-up">!</span> {% endif %}</span>
+{% endif %}
+<br>
+{% if ytdlpver %}
+<span>current yt-dlp version: {{ytdlpver}}</span>
+{% endif %}
+
+<p>by
+    <a href="https://zuirx.com">zuirx</a> (<a href="https://m.zuirx.com/c/ytdldotlol" target="_blank"
+        rel="noopener">blog</a>) |
+    <a href="https://github.com/zuirx/ytdl-dot-lol" target="_blank" rel="noopener">HOST YOUR OWN</a>
+</p>

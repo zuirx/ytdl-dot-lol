@@ -4,13 +4,174 @@ import logging
 import zipfile
 import shutil
 import subprocess
+import json
 from celery import shared_task
 from django.conf import settings
 import time
 
+YTDLP_CLI = shutil.which('yt-dlp')
+
 logger = logging.getLogger(__name__)
 
-COOKIES_PATH = os.path.join(settings.BASE_DIR, 'cookies.txt')
+COOKIES_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, 'cookie.txt'))
+
+def _is_youtube(url):
+    return 'youtube.com' in url or 'youtu.be' in url
+
+def _inject_cookies(opts, url):
+    if not _is_youtube(url):
+        return opts
+    if os.path.exists(COOKIES_PATH):
+        opts['cookiefile'] = COOKIES_PATH
+    else:
+        opts['cookiesfrombrowser'] = ('chrome', None, None, None)
+    return opts
+
+def _age_restricted_error(exc):
+    msg = str(exc).lower()
+    return any(p in msg for p in ('sign in to confirm your age', 'confirm your age', 'age restriction', 'this video may be inappropriate'))
+
+def _apply_node_js(opts):
+    """Ensure yt-dlp can find node.exe for YouTube n-sig challenges."""
+    node_path = shutil.which('node')
+    if node_path:
+        # yt-dlp expects js_runtimes as a top-level dict: {runtime: {config}}
+        # Default already includes {'deno': {}}, so we merge rather than replace.
+        runtimes = opts.get('js_runtimes') or {}
+        if isinstance(runtimes, dict) and 'node' not in runtimes:
+            opts['js_runtimes'] = {**runtimes, 'node': {'path': node_path}}
+    return opts
+
+def _ytdlp_cli_args(url, opts, download=True):
+    """Build yt-dlp CLI argument list from Python opts dict."""
+    if not YTDLP_CLI:
+        raise RuntimeError("yt-dlp CLI not found in PATH")
+
+    args = [YTDLP_CLI, '--js-runtimes', 'node']
+
+    if opts.get('quiet'):
+        args.append('-q')
+    if opts.get('nocheckcertificate'):
+        args.append('--no-check-certificate')
+
+    if not download:
+        args.extend(['-J', '--no-warnings'])
+    else:
+        if opts.get('format'):
+            args.extend(['-f', opts['format']])
+        if opts.get('outtmpl'):
+            args.extend(['-o', opts['outtmpl']])
+        if opts.get('merge_output_format'):
+            args.extend(['--merge-output-format', opts['merge_output_format']])
+        if opts.get('writethumbnail'):
+            args.append('--write-thumbnail')
+
+        for pp in opts.get('postprocessors', []):
+            key = pp.get('key', '')
+            if key == 'FFmpegExtractAudio':
+                args.append('-x')
+                if pp.get('preferredcodec'):
+                    args.extend(['--audio-format', pp['preferredcodec']])
+                if pp.get('preferredquality'):
+                    args.extend(['--audio-quality', pp['preferredquality']])
+            elif key == 'EmbedThumbnail':
+                args.append('--embed-thumbnail')
+            elif key == 'FFmpegThumbnailsConvertor':
+                if pp.get('format'):
+                    args.extend(['--convert-thumbnails', pp['format']])
+            elif key == 'FFmpegMetadata':
+                args.append('--add-metadata')
+
+    # Cookies
+    cookiefile = opts.get('cookiefile')
+    if cookiefile and os.path.exists(cookiefile):
+        args.extend(['--cookies', cookiefile])
+    elif opts.get('cookiesfrombrowser'):
+        browser = opts['cookiesfrombrowser'][0] if isinstance(opts['cookiesfrombrowser'], tuple) else opts['cookiesfrombrowser']
+        args.extend(['--cookies-from-browser', browser])
+
+    args.append(url)
+    return args
+
+
+def _run_ytdlp_cli(url, opts, download=False):
+    """Run yt-dlp CLI and return info dict (if not download) or None."""
+    args = _ytdlp_cli_args(url, opts, download=download)
+    logger.info("Running yt-dlp CLI: %s", ' '.join(args))
+    result = subprocess.run(args, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        stderr = result.stderr.strip() if result.stderr else ''
+        raise yt_dlp.utils.DownloadError(f"yt-dlp CLI failed: {stderr or 'Unknown error'}")
+
+    if not download:
+        output = result.stdout.strip()
+        try:
+            return json.loads(output)
+        except json.JSONDecodeError:
+            # yt-dlp sometimes prints warnings before JSON; grab the last JSON object
+            for line in reversed(output.splitlines()):
+                line = line.strip()
+                if line.startswith('{') and line.endswith('}'):
+                    try:
+                        return json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+            raise yt_dlp.utils.DownloadError(f"Could not parse yt-dlp JSON output: {output[:500]}")
+
+    return None
+
+
+def _format_not_available_error(exc):
+    msg = str(exc).lower()
+    return 'requested format is not available' in msg
+
+def _extract_with_cookie_fallback(url, opts, download=False):
+    """Run yt-dlp without cookies first; retry with cookies on failure,
+    then fall back to generic 'best' format if still unavailable."""
+    _apply_node_js(opts)
+    opts_clean = {k: v for k, v in opts.items() if k not in ('cookiefile', 'cookiesfrombrowser')}
+    _apply_node_js(opts_clean)
+
+    def _retry_with_best(ydl_opts):
+        logger.warning("Format unavailable – falling back to 'best' for %s", url)
+        copied = {**ydl_opts, 'format': 'best'}
+        try:
+            with yt_dlp.YoutubeDL(copied) as ydl:
+                return ydl.extract_info(url, download=download)
+        except yt_dlp.utils.DownloadError as e:
+            if _format_not_available_error(e):
+                raise yt_dlp.utils.DownloadError(
+                    f"No playable formats available for {url}. "
+                    "Ensure a JavaScript runtime (Node.js or Deno) is installed and in PATH, "
+                    "or that the video is not blocked/restricted in your region."
+                )
+            raise
+
+    def _retry_with_cookies(ydl_opts, err):
+        if _is_youtube(url) and _age_restricted_error(err) and YTDLP_CLI:
+            logger.warning("Age-restricted YouTube video — switching to yt-dlp CLI: %s", url)
+            _inject_cookies(ydl_opts, url)
+            return _run_ytdlp_cli(url, ydl_opts, download=download)
+
+        if _is_youtube(url):
+            logger.warning("Retrying %s with cookies after: %s", url, err)
+            _inject_cookies(ydl_opts, url)
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    return ydl.extract_info(url, download=download)
+            except yt_dlp.utils.DownloadError as e2:
+                if _format_not_available_error(e2):
+                    return _retry_with_best(ydl_opts)
+                raise
+
+    try:
+        with yt_dlp.YoutubeDL(opts_clean) as ydl:
+            return ydl.extract_info(url, download=download)
+    except yt_dlp.utils.DownloadError as e:
+        if _age_restricted_error(e) or _format_not_available_error(e):
+            return _retry_with_cookies(opts, str(e))
+        raise
 
 # Constants are now in settings.py
 
@@ -114,6 +275,7 @@ def _download_reddit_best_video(url, output_dir, video_id):
             'format': format_selector,
             'outtmpl': outtmpl,
         }
+        _apply_node_js(opts)
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
         try:
@@ -177,30 +339,24 @@ def download_playlist_task(self, video_urls, download_type='audio', quality='bes
             'nocheckcertificate':  True,
         }
 
-    # Use cookies for YouTube videos if file exists
-    if video_urls and 'youtube.com' in video_urls[0] and os.path.exists(COOKIES_PATH):
-        params['cookiefile'] = COOKIES_PATH
-
     for i, v_url in enumerate(video_urls):
         current = i + 1
         self.update_state(state='PROGRESS', meta={
             'percent': (i / total_vids) * 100,
             'status': f'Downloading video {current} of {total_vids}...'
         })
-        
+
         try:
-            with yt_dlp.YoutubeDL(params) as ydl:
-                # Check duration before download
-                info = ydl.extract_info(v_url, download=False)
-                duration = info.get('duration', 0)
-                if duration > settings.MAX_VIDEO_DURATION:
-                    logger.warning(f"Skipping video {v_url} because it exceeds duration limit.")
-                    continue
-                ydl.download([v_url])
+            # Check duration before download (retries with cookies on age restriction)
+            info = _extract_with_cookie_fallback(v_url, params, download=False)
+            duration = info.get('duration', 0)
+            if duration > settings.MAX_VIDEO_DURATION:
+                logger.warning(f"Skipping video {v_url} because it exceeds duration limit.")
+                continue
+            # Download with same fallback logic (cookies + CLI for age-restricted YouTube)
+            _extract_with_cookie_fallback(v_url, params, download=True)
         except Exception as e:
             logger.error(f"Failed to download {v_url}: {e}")
-            # Continue with others even if one fails? 
-            # For now, let's just log it.
 
     self.update_state(state='PROGRESS', meta={
         'percent': 95,
@@ -298,12 +454,11 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
     # Pre-check duration
     title = video_id
     try:
-        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-            info = ydl.extract_info(url, download=False)
-            duration = info.get('duration', 0)
-            if duration > settings.MAX_VIDEO_DURATION:
-                raise ValueError(f"Video is too long ({round(duration/3600, 1)}h). Max limit is {int(settings.MAX_VIDEO_DURATION/3600)}h.")
-            title = info.get('title') or video_id
+        info = _extract_with_cookie_fallback(url, {'quiet': True}, download=False)
+        duration = info.get('duration', 0)
+        if duration > settings.MAX_VIDEO_DURATION:
+            raise ValueError(f"Video is too long ({round(duration/3600, 1)}h). Max limit is {int(settings.MAX_VIDEO_DURATION/3600)}h.")
+        title = info.get('title') or video_id
     except Exception as e:
         if "Video is too long" in str(e): raise
         # If it's another error, we'll let the main download try and catch it (it might be a playlist/unsupported URL)
@@ -332,11 +487,6 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
         'merge_output_format': 'mp4' if (type == 'video' and not itag) else None,
     }
 
-    # Use cookies for +18 YouTube videos
-    if 'youtube.com' in url and os.path.exists(COOKIES_PATH):
-        ydl_opts['cookiefile'] = COOKIES_PATH
-    
-    
     if type == 'audio':
         ydl_opts['postprocessors'].insert(0, {
             'key':              'FFmpegExtractAudio',
@@ -345,24 +495,25 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
         })
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            
-            # Update final path if changed by post-processors
+        info = _extract_with_cookie_fallback(url, ydl_opts, download=True)
+
+        # When CLI handles the download, info is None.
+        # Fallback to the outtmpl path and pre-fetched title.
+        if info:
             try:
                 final_path = info['requested_downloads'][0]['filepath']
-            except:
+            except Exception:
                 pass
-            
-            title = info.get('title') or 'download'
-            ext = final_path.split('.')[-1]
-            
-            return {
-                'status': 'Finished',
-                'file_path': final_path,
-                'title': title,
-                'ext': ext
-            }
+            title = info.get('title') or title
+
+        ext = final_path.split('.')[-1]
+        
+        return {
+            'status': 'Finished',
+            'file_path': final_path,
+            'title': title,
+            'ext': ext
+        }
     except Exception as e:
         logger.exception("Download task failed")
         raise

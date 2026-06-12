@@ -47,6 +47,79 @@ DIR_MIX      = settings.DIR_MIX
 DIR_PLAYLIST = settings.DIR_PLAYLIST
 GITREPOLINK  = 'https://api.github.com/repos/zuirx/ytdl-dot-lol/commits' # Change this for your fork!
 
+COOKIES_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, 'cookie.txt'))
+
+def _is_youtube(url):
+    return 'youtube.com' in url or 'youtu.be' in url
+
+def _inject_cookies(opts, url):
+    if not _is_youtube(url):
+        return opts
+    if os.path.exists(COOKIES_PATH):
+        opts['cookiefile'] = COOKIES_PATH
+    else:
+        opts['cookiesfrombrowser'] = ('chrome', None, None, None)
+    return opts
+
+def _age_restricted_error(exc):
+    msg = str(exc).lower()
+    return any(p in msg for p in ('sign in to confirm your age', 'confirm your age', 'age restriction', 'this video may be inappropriate'))
+
+import subprocess
+
+def _apply_node_js(opts):
+    """Ensure yt-dlp can find node.exe for YouTube n-sig challenges."""
+    try:
+        node_path = subprocess.check_output(['where', 'node'], text=True, stderr=subprocess.DEVNULL).strip().split('\n')[0]
+    except Exception:
+        node_path = 'node'
+    ea = opts.setdefault('extractor_args', {})
+    youtube_ea = ea.setdefault('youtube', [])
+    if isinstance(youtube_ea, list):
+        youtube_ea.append(f'player_js={node_path}')
+        youtube_ea.append('js_runtimes=node')
+    elif isinstance(youtube_ea, dict):
+        youtube_ea.setdefault('player_js', node_path)
+        youtube_ea.setdefault('js_runtimes', ['node'])
+    return opts
+
+def _format_not_available_error(exc):
+    msg = str(exc).lower()
+    return 'requested format is not available' in msg
+
+def _extract_with_cookie_fallback(url, opts, download=False):
+    """Run yt-dlp without cookies first; retry with cookies on failure,
+    then fall back to generic 'best' format if still unavailable."""
+    _apply_node_js(opts)
+    opts_clean = {k: v for k, v in opts.items() if k not in ('cookiefile', 'cookiesfrombrowser')}
+    _apply_node_js(opts_clean)
+
+    def _retry_with_best(ydl_opts):
+        logger.warning("Format unavailable – falling back to 'best' for %s", url)
+        ydl_opts['format'] = 'best'
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            return ydl.extract_info(url, download=download)
+
+    def _retry_with_cookies(ydl_opts, err):
+        if _is_youtube(url):
+            logger.warning("Retrying %s with cookies after: %s", url, err)
+            _inject_cookies(ydl_opts, url)
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    return ydl.extract_info(url, download=download)
+            except yt_dlp.utils.DownloadError as e2:
+                if _format_not_available_error(e2):
+                    return _retry_with_best(ydl_opts)
+                raise
+
+    try:
+        with yt_dlp.YoutubeDL(opts_clean) as ydl:
+            return ydl.extract_info(url, download=download)
+    except yt_dlp.utils.DownloadError as e:
+        if _age_restricted_error(e) or _format_not_available_error(e):
+            return _retry_with_cookies(opts, str(e))
+        raise
+
 # ---------------------------------------------------------------------------
 # File cleanup registry — paths are deleted 1 hour after download
 # ---------------------------------------------------------------------------
@@ -81,7 +154,9 @@ threading.Thread(target=_cleanup_loop, daemon=True).start()
 def _download_reddit_best_video(url, output_dir, video_id, request, noreturn=False):
     os.makedirs(output_dir, exist_ok=True)
 
-    with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+    opts = {'quiet': True}
+    _apply_node_js(opts)
+    with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
         formats = info.get('formats', [])
         
@@ -173,8 +248,7 @@ def home_yt(request, subpath=''):
         match action:
             case 'info':
                 try:
-                    with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-                        info = ydl.extract_info(url, download=False)
+                    info = _extract_with_cookie_fallback(url, {'quiet': True}, download=False)
 
                     formats_dict = {'video': {}, 'audio': {}, 'subtitles': []}
 
@@ -379,28 +453,27 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
                 })
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+        info = _extract_with_cookie_fallback(url, ydl_opts, download=True)
 
-            if type in ('transcript', 'subtitle'):
-                subtitle_exts = ('srt', 'vtt', 'ttml', 'srv3', 'srv2', 'srv1', 'json3')
-                found = []
-                for ext in subtitle_exts:
-                    found = glob_module.glob(os.path.join(output_dir, f'{video_id}*.{ext}'))
-                    if found:
-                        filetype = ext
-                        break
+        if type in ('transcript', 'subtitle'):
+            subtitle_exts = ('srt', 'vtt', 'ttml', 'srv3', 'srv2', 'srv1', 'json3')
+            found = []
+            for ext in subtitle_exts:
+                found = glob_module.glob(os.path.join(output_dir, f'{video_id}*.{ext}'))
                 if found:
-                    final_path = found[0]
-                else:
-                    raise FileNotFoundError("No subtitle file was downloaded. The video may not have subtitles in the requested language.")
+                    filetype = ext
+                    break
+            if found:
+                final_path = found[0]
             else:
-                try:
-                    final_path = info['requested_downloads'][0]['filepath']
-                except:
-                    pass
+                raise FileNotFoundError("No subtitle file was downloaded. The video may not have subtitles in the requested language.")
+        else:
+            try:
+                final_path = info['requested_downloads'][0]['filepath']
+            except:
+                pass
 
-            title = info.get('title') or filename
+        title = info.get('title') or filename
 
         if title:
             video_id = title
@@ -424,8 +497,8 @@ def retrieve_playlist_yt(request, subpath):
         report_error(request, "This is (probably) not a Youtube playlist link.")
         return []
 
-    with yt_dlp.YoutubeDL({'extract_flat': True, 'quiet': True}) as ydl:
-        playlist_info = ydl.extract_info(subpath, download=False)
+    pl_opts = {'extract_flat': True, 'quiet': True}
+    playlist_info = _extract_with_cookie_fallback(subpath, pl_opts, download=False)
 
     video_list = []
     if 'entries' in playlist_info:
@@ -482,8 +555,7 @@ def dl_sel_playlist_yt(request):
             }
 
         for v in list_vids:
-            with yt_dlp.YoutubeDL(params) as ydl:
-                ydl.download(v)
+            _extract_with_cookie_fallback(v, params, download=True)
 
         zip_path = f'{DIR_PLAYLIST}/Playlist_{num_id}.zip'
         zip_folder(pl_temp_dir, zip_path)

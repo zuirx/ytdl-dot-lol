@@ -180,21 +180,27 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-
 TODO.md
-ytdl/secret_key.py
+
 /ytdl-downloads
 /content-mix/
 /content-downloads/
-/staticfiles
-upytdlp-deb.sh
 /content-playlist
+
+ytdl/secret_key.py
+/staticfiles
+
+upytdlp-deb.sh
+
 main/templates/main/ads_head.html
 main/templates/main/ads_body.html
+
 *.vtt
 /.vscode
+
 celerybeat-schedule.dir
 celerybeat-schedule.dat
 celerybeat-schedule.bak
 
-cookies.txt
+dump.rdb
+cookie.txt

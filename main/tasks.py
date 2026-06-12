@@ -23,12 +23,27 @@ def _ytdlp_supports_js_runtimes(cli_path=None):
         return False
 
 
+def _get_node_version():
+    """Return (major, full_version_string) or (0, None) if node missing."""
+    node = shutil.which('node')
+    if not node:
+        return 0, None
+    try:
+        out = subprocess.run([node, '-v'], capture_output=True, text=True).stdout.strip()
+        # v18.20.4 -> 18
+        major = int(out.lstrip('v').split('.')[0])
+        return major, out
+    except Exception:
+        return 0, None
+
+
 def _has_js_runtime():
-    return shutil.which('node') or shutil.which('deno')
+    return bool(shutil.which('deno')) or (_get_node_version()[0] >= 20)
 
 
 YTDLP_HAS_JS_RUNTIMES = _ytdlp_supports_js_runtimes()
 HAS_JS_RUNTIME = _has_js_runtime()
+NODE_MAJOR, NODE_VER_STR = _get_node_version()
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +66,11 @@ def _age_restricted_error(exc):
     return any(p in msg for p in ('sign in to confirm your age', 'confirm your age', 'age restriction', 'this video may be inappropriate'))
 
 def _apply_node_js(opts):
-    """Ensure yt-dlp can find node.exe for YouTube n-sig challenges."""
+    """Ensure yt-dlp can find node.exe for YouTube n-sig challenges.
+    Only injects node if version >= 20, otherwise leaves it to deno or default."""
     node_path = shutil.which('node')
-    if node_path:
-        # yt-dlp expects js_runtimes as a top-level dict: {runtime: {config}}
-        # Default already includes {'deno': {}}, so we merge rather than replace.
+    major, _ = _get_node_version()
+    if node_path and major >= 20:
         runtimes = opts.get('js_runtimes') or {}
         if isinstance(runtimes, dict) and 'node' not in runtimes:
             opts['js_runtimes'] = {**runtimes, 'node': {'path': node_path}}
@@ -116,12 +131,8 @@ def _ytdlp_cli_args(url, opts, download=True):
 
 
 def _run_ytdlp_cli(url, opts, download=False, _retried=False):
-    """Run yt-dlp CLI and return info dict (if not download) or None.
-
-    If the failure looks like a missing-JS-runtime issue and we haven't
-    retried yet, auto-update yt-dlp via pip and try once more.
-    """
-    global YTDLP_CLI, YTDLP_HAS_JS_RUNTIMES, HAS_JS_RUNTIME
+    """Run yt-dlp CLI and return info dict (if not download) or None."""
+    global YTDLP_CLI, YTDLP_HAS_JS_RUNTIMES, HAS_JS_RUNTIME, NODE_MAJOR, NODE_VER_STR
 
     args = _ytdlp_cli_args(url, opts, download=download)
     logger.info("Running yt-dlp CLI: %s", ' '.join(args))
@@ -129,9 +140,19 @@ def _run_ytdlp_cli(url, opts, download=False, _retried=False):
 
     if result.returncode != 0:
         stderr = result.stderr.strip() if result.stderr else ''
-        combined = (result.stdout + '\n' + stderr).lower()
+        stdout = result.stdout.strip() if result.stdout else ''
+        combined = (stdout + '\n' + stderr).lower()
 
-        # Detect missing-JS-runtime signatures
+        # 1) Node installed but too old for yt-dlp
+        if NODE_MAJOR and NODE_MAJOR < 20 and 'unsupported' in combined:
+            raise yt_dlp.utils.DownloadError(
+                f"YouTube extraction failed: Node.js {NODE_VER_STR} is installed "
+                "but yt-dlp considers it unsupported. Upgrade to Node.js 20+ "
+                "(e.g. 'npm install -g n && n 22' or use your distro's Node 20 repo), "
+                "then restart your workers."
+            )
+
+        # 2) No usable JS runtime at all
         missing_runtime = any(
             phrase in combined
             for phrase in (
@@ -142,39 +163,14 @@ def _run_ytdlp_cli(url, opts, download=False, _retried=False):
             )
         )
 
-        if missing_runtime and not _retried and (not HAS_JS_RUNTIME or not YTDLP_HAS_JS_RUNTIMES):
-            logger.warning(
-                "yt-dlp failed due to missing JS runtime or old yt-dlp CLI. "
-                "Attempting auto-update of yt-dlp..."
-            )
-            try:
-                subprocess.run(
-                    [shutil.which('python') or 'python', '-m', 'pip', 'install', '-U', 'yt-dlp'],
-                    capture_output=True, text=True, check=True,
-                )
-                # Refresh globals after update
-                YTDLP_CLI = shutil.which('yt-dlp')
-                YTDLP_HAS_JS_RUNTIMES = _ytdlp_supports_js_runtimes()
-                HAS_JS_RUNTIME = _has_js_runtime()
-                logger.info(
-                    "yt-dlp updated. CLI=%s js_runtimes=%s has_runtime=%s",
-                    YTDLP_CLI, YTDLP_HAS_JS_RUNTIMES, HAS_JS_RUNTIME,
-                )
-            except Exception as upd_exc:
-                logger.warning("Auto-update of yt-dlp failed: %s", upd_exc)
-
-            # Retry once with refreshed globals
-            return _run_ytdlp_cli(url, opts, download=download, _retried=True)
-
         if missing_runtime and not HAS_JS_RUNTIME:
             raise yt_dlp.utils.DownloadError(
-                "YouTube extraction failed: no JavaScript runtime found. "
-                "Install Node.js (e.g. 'apt install nodejs' or 'dnf install nodejs') "
-                "or Deno, then restart your workers. "
-                f"Original error: {stderr or 'Unknown error'}"
+                "YouTube extraction failed: no usable JavaScript runtime found. "
+                "Install Node.js 20+ or Deno, then restart your workers. "
+                f"Original error: {stderr or stdout or 'Unknown error'}"
             )
 
-        raise yt_dlp.utils.DownloadError(f"yt-dlp CLI failed: {stderr or 'Unknown error'}")
+        raise yt_dlp.utils.DownloadError(f"yt-dlp CLI failed: {stderr or stdout or 'Unknown error'}")
 
     if not download:
         output = result.stdout.strip()

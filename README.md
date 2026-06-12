@@ -68,6 +68,20 @@ You need to run three separate processes:
    celery -A ytdl beat -l info
    ```
 
+## Age-Restriction (YouTube)
+
+In order to make age restriction from YouTube to work, you will need to have a cookie file.
+
+To get the file:
+
+- make sure you have yt-dlp cli installed;
+- logged in on YouTube (with age verified);
+- save your cookie.txt with the command:
+
+```bash
+   yt-dlp --cookies-from-browser chrome --cookies "/path/to/ytdl-dot-lol/cookie.txt" "https://www.youtube.com"
+```
+
 ## Enforced Limits
 To ensure site stability, the following limits are enforced:
 -   **Video Duration**: Maximum 2 hours per video.

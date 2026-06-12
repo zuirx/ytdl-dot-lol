@@ -11,16 +11,24 @@ import time
 
 YTDLP_CLI = shutil.which('yt-dlp')
 
-def _ytdlp_supports_js_runtimes():
-    if not YTDLP_CLI:
+
+def _ytdlp_supports_js_runtimes(cli_path=None):
+    path = cli_path or YTDLP_CLI
+    if not path:
         return False
     try:
-        result = subprocess.run([YTDLP_CLI, '--help'], capture_output=True, text=True)
+        result = subprocess.run([path, '--help'], capture_output=True, text=True)
         return '--js-runtimes' in result.stdout
     except Exception:
         return False
 
+
+def _has_js_runtime():
+    return shutil.which('node') or shutil.which('deno')
+
+
 YTDLP_HAS_JS_RUNTIMES = _ytdlp_supports_js_runtimes()
+HAS_JS_RUNTIME = _has_js_runtime()
 
 logger = logging.getLogger(__name__)
 
@@ -107,14 +115,65 @@ def _ytdlp_cli_args(url, opts, download=True):
     return args
 
 
-def _run_ytdlp_cli(url, opts, download=False):
-    """Run yt-dlp CLI and return info dict (if not download) or None."""
+def _run_ytdlp_cli(url, opts, download=False, _retried=False):
+    """Run yt-dlp CLI and return info dict (if not download) or None.
+
+    If the failure looks like a missing-JS-runtime issue and we haven't
+    retried yet, auto-update yt-dlp via pip and try once more.
+    """
+    global YTDLP_CLI, YTDLP_HAS_JS_RUNTIMES, HAS_JS_RUNTIME
+
     args = _ytdlp_cli_args(url, opts, download=download)
     logger.info("Running yt-dlp CLI: %s", ' '.join(args))
     result = subprocess.run(args, capture_output=True, text=True)
 
     if result.returncode != 0:
         stderr = result.stderr.strip() if result.stderr else ''
+        combined = (result.stdout + '\n' + stderr).lower()
+
+        # Detect missing-JS-runtime signatures
+        missing_runtime = any(
+            phrase in combined
+            for phrase in (
+                'n challenge solving failed',
+                'only images are available',
+                'no supported javascript runtime',
+                'requested format is not available',
+            )
+        )
+
+        if missing_runtime and not _retried and (not HAS_JS_RUNTIME or not YTDLP_HAS_JS_RUNTIMES):
+            logger.warning(
+                "yt-dlp failed due to missing JS runtime or old yt-dlp CLI. "
+                "Attempting auto-update of yt-dlp..."
+            )
+            try:
+                subprocess.run(
+                    [shutil.which('python') or 'python', '-m', 'pip', 'install', '-U', 'yt-dlp'],
+                    capture_output=True, text=True, check=True,
+                )
+                # Refresh globals after update
+                YTDLP_CLI = shutil.which('yt-dlp')
+                YTDLP_HAS_JS_RUNTIMES = _ytdlp_supports_js_runtimes()
+                HAS_JS_RUNTIME = _has_js_runtime()
+                logger.info(
+                    "yt-dlp updated. CLI=%s js_runtimes=%s has_runtime=%s",
+                    YTDLP_CLI, YTDLP_HAS_JS_RUNTIMES, HAS_JS_RUNTIME,
+                )
+            except Exception as upd_exc:
+                logger.warning("Auto-update of yt-dlp failed: %s", upd_exc)
+
+            # Retry once with refreshed globals
+            return _run_ytdlp_cli(url, opts, download=download, _retried=True)
+
+        if missing_runtime and not HAS_JS_RUNTIME:
+            raise yt_dlp.utils.DownloadError(
+                "YouTube extraction failed: no JavaScript runtime found. "
+                "Install Node.js (e.g. 'apt install nodejs' or 'dnf install nodejs') "
+                "or Deno, then restart your workers. "
+                f"Original error: {stderr or 'Unknown error'}"
+            )
+
         raise yt_dlp.utils.DownloadError(f"yt-dlp CLI failed: {stderr or 'Unknown error'}")
 
     if not download:
@@ -162,8 +221,8 @@ def _extract_with_cookie_fallback(url, opts, download=False):
             raise
 
     def _retry_with_cookies(ydl_opts, err):
-        if _is_youtube(url) and _age_restricted_error(err) and YTDLP_CLI:
-            logger.warning("Age-restricted YouTube video — switching to yt-dlp CLI: %s", url)
+        if _is_youtube(url) and YTDLP_CLI and (_age_restricted_error(err) or _format_not_available_error(err)):
+            logger.warning("YouTube video hit restriction or missing formats — switching to yt-dlp CLI: %s", url)
             _inject_cookies(ydl_opts, url)
             return _run_ytdlp_cli(url, ydl_opts, download=download)
 

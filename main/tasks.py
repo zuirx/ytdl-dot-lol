@@ -11,6 +11,17 @@ import time
 
 YTDLP_CLI = shutil.which('yt-dlp')
 
+def _ytdlp_supports_js_runtimes():
+    if not YTDLP_CLI:
+        return False
+    try:
+        result = subprocess.run([YTDLP_CLI, '--help'], capture_output=True, text=True)
+        return '--js-runtimes' in result.stdout
+    except Exception:
+        return False
+
+YTDLP_HAS_JS_RUNTIMES = _ytdlp_supports_js_runtimes()
+
 logger = logging.getLogger(__name__)
 
 COOKIES_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, 'cookie.txt'))
@@ -47,7 +58,9 @@ def _ytdlp_cli_args(url, opts, download=True):
     if not YTDLP_CLI:
         raise RuntimeError("yt-dlp CLI not found in PATH")
 
-    args = [YTDLP_CLI, '--js-runtimes', 'node']
+    args = [YTDLP_CLI]
+    if YTDLP_HAS_JS_RUNTIMES:
+        args.extend(['--js-runtimes', 'node'])
 
     if opts.get('quiet'):
         args.append('-q')

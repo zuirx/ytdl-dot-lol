@@ -80,13 +80,13 @@
                     Best Video
                 </button>
                 
-                <button type="submit" name="action" value="playlist">
+                <!-- <button type="submit" name="action" value="playlist">
                     <svg class="icon" viewBox="0 0 24 24">
                         <path
                             d="M10,15L15.19,12L10,9V15M21.56,7.17C21.69,7.64 21.78,8.27 21.84,9.07C21.91,9.87 21.94,10.56 21.94,11.16L22,12C22,14.19 21.84,15.8 21.56,16.83C21.31,17.73 20.73,18.31 19.83,18.56C19.36,18.69 18.73,18.78 17.93,18.84C17.13,18.91 16.44,18.94 15.84,18.94L15,19C12.81,19 11.2,18.84 10.17,18.56C9.27,18.31 8.69,17.73 8.44,16.83C8.31,16.36 8.22,15.73 8.16,14.93C8.09,14.13 8.06,13.44 8.06,12.84L8,12C8,9.81 8.16,8.2 8.44,7.17C8.69,6.27 9.27,5.69 10.17,5.44C10.64,5.31 11.27,5.22 12.07,5.16C12.87,5.09 13.56,5.06 14.16,5.06L15,5C17.19,5 18.8,5.16 19.83,5.44C20.73,5.69 21.31,6.27 21.56,7.17Z" />
                     </svg>
                     YT Playlist Downloader
-                </button>
+                </button> -->
                 <button type="submit" name="action" value="info">
                     <svg class="icon" viewBox="0 0 24 24">
                         <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
@@ -167,7 +167,7 @@
         <p class="button-agree">by clicking in any of the buttons, <br> you agree with the <a href="{% url 'terms-privacy' %}">Terms of Service & Privacy Policy</a>.</p>
         
         <br>
-        <p class="button-agree"><strong>15/06/2026: YouTube blocked my IP, disabling for a while until I got a good fix...</strong></p>
+        <p class="button-agree"><strong>15/06/2026: YouTube blocked my IP, disabling YouTube links for a while until I get a good fix...</strong></p>
                 
         {% if dl_opts %}
         <form method="POST" action="{% url 'mix_av' %}" id="mix-form">

@@ -52,6 +52,21 @@ COOKIES_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, 'cookie.txt'))
 def _is_youtube(url):
     return 'youtube.com' in url or 'youtu.be' in url
 
+YOUTUBE_BLOCKED_MSG = "YouTube downloads are currently unavailable and will be restored shortly."
+
+def _check_youtube_block(request, url):
+    """Return a redirect response if YouTube is temporarily blocked, else None."""
+    if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False) and url and _is_youtube(url):
+        report_error(request, YOUTUBE_BLOCKED_MSG)
+        return redirect('home_yt')
+    return None
+
+def _check_youtube_block_json(url):
+    """Return a JsonResponse if YouTube is temporarily blocked, else None."""
+    if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False) and url and _is_youtube(url):
+        return JsonResponse({'error': YOUTUBE_BLOCKED_MSG}, status=503)
+    return None
+
 def _inject_cookies(opts, url):
     if not _is_youtube(url):
         return opts
@@ -192,6 +207,10 @@ def home_yt(request, subpath=''):
     listvid  = []
     video_id = request.GET.get("v") or request.GET.get("watch")
 
+    block = _check_youtube_block(request, subpath)
+    if block:
+        return block
+
     if "https://www.youtube.com/watch" in subpath:
         return download_yt(request, subpath, video_id, middle="?v=")
     elif "https://youtu.be" in subpath:
@@ -216,6 +235,10 @@ def home_yt(request, subpath=''):
         if not re.search('http', url) and action != 'setting-save':
             report_error(request, 'Invalid link. (we need the https:// or http://)')
             return redirect('home_yt')
+
+        block = _check_youtube_block(request, url)
+        if block:
+            return block
 
         match action:
             case 'info':
@@ -329,6 +352,10 @@ def dl_from_opt(request):
     itag     = parts[0]
     url      = parts[1]
     typeitag = parts[2]
+
+    block = _check_youtube_block(request, url)
+    if block:
+        return block
 
     if itag.startswith('sub:'):
         return download_yt(request, subpath=url, type='subtitle', itag=itag[4:], typeitag='srt')
@@ -518,6 +545,11 @@ def dl_sel_playlist_yt(request):
         report_error(request, "No valid video URLs found in selection.")
         return redirect('home_yt')
 
+    if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False):
+        if any(_is_youtube(v) for v in list_vids):
+            report_error(request, YOUTUBE_BLOCKED_MSG)
+            return redirect('home_yt')
+
     zip_type  = request.POST.get("download_type", 'audio')
 
     try:
@@ -568,6 +600,11 @@ def mix_av(request):
         return redirect('home_yt')
 
     url           = request.POST.get("yt_link")
+
+    block = _check_youtube_block(request, url)
+    if block:
+        return block
+
     video_options = [k for k, v in request.POST.items() if k.endswith('_vcheck') and v == 'on']
     audio_options = [k for k, v in request.POST.items() if k.endswith('_acheck') and v == 'on']
 
@@ -651,6 +688,10 @@ def initiate_download(request):
         if not list_vids:
             return JsonResponse({'error': 'No valid video URLs found in selection.'}, status=400)
 
+        if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False):
+            if any(_is_youtube(v) for v in list_vids):
+                return JsonResponse({'error': YOUTUBE_BLOCKED_MSG}, status=503)
+
         q = v_quality if download_type == 'video' else a_quality
         task = download_playlist_task.delay(list_vids, download_type=download_type, quality=q)
         return JsonResponse({'task_id': task.id})
@@ -674,6 +715,10 @@ def initiate_download(request):
         
     if not url:
         return JsonResponse({'error': 'No link provided.'}, status=400)
+
+    block = _check_youtube_block_json(url)
+    if block:
+        return block
 
     q = v_quality if type == 'video' else a_quality
     task = download_video_task.delay(url, type=type, itag=itag, typeitag=typeitag, quality=q)

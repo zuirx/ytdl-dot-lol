@@ -158,3 +158,6 @@ MAX_VIDEO_DURATION = 7200  # 2 hours
 DIR_DOWNLOAD = 'content-downloads'
 DIR_MIX = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
+
+# Temporary YouTube block toggle
+YOUTUBE_TEMPORARILY_BLOCKED = True

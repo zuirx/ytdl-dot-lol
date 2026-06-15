@@ -5,6 +5,7 @@ import zipfile
 import shutil
 import subprocess
 import json
+import glob
 from celery import shared_task
 from django.conf import settings
 import time
@@ -89,6 +90,11 @@ def _ytdlp_cli_args(url, opts, download=True):
         args.append('-q')
     if opts.get('nocheckcertificate'):
         args.append('--no-check-certificate')
+    if opts.get('ignoreerrors'):
+        args.append('--ignore-errors')
+
+    if opts.get('extract_flat'):
+        args.append('--flat-playlist')
 
     if not download:
         args.extend(['-J', '--no-warnings'])
@@ -117,6 +123,22 @@ def _ytdlp_cli_args(url, opts, download=True):
                     args.extend(['--convert-thumbnails', pp['format']])
             elif key == 'FFmpegMetadata':
                 args.append('--add-metadata')
+            elif key == 'FFmpegSubtitlesConvertor':
+                if pp.get('format'):
+                    args.extend(['--convert-subs', pp['format']])
+
+    if opts.get('writesubtitles'):
+        args.append('--write-subs')
+    if opts.get('writeautomaticsub'):
+        args.append('--write-auto-subs')
+    if opts.get('subtitleslangs'):
+        langs = opts['subtitleslangs']
+        if isinstance(langs, (list, tuple)):
+            args.extend(['--sub-langs', ','.join(str(l) for l in langs)])
+        else:
+            args.extend(['--sub-langs', str(langs)])
+    if opts.get('skip_download'):
+        args.append('--skip-download')
 
     # Cookies
     cookiefile = opts.get('cookiefile')
@@ -195,63 +217,10 @@ def _format_not_available_error(exc):
     return 'requested format is not available' in msg
 
 def _extract_with_cookie_fallback(url, opts, download=False):
-    """Run yt-dlp without cookies first; retry with cookies on failure,
-    then fall back to generic 'best' format if still unavailable."""
+    """Always run yt-dlp CLI with cookies injected for YouTube URLs."""
     _apply_node_js(opts)
-    opts_clean = {k: v for k, v in opts.items() if k not in ('cookiefile', 'cookiesfrombrowser')}
-    _apply_node_js(opts_clean)
-
-    def _retry_with_best(ydl_opts):
-        logger.warning("Format unavailable – falling back to 'best' for %s", url)
-        copied = {**ydl_opts, 'format': 'best'}
-        try:
-            with yt_dlp.YoutubeDL(copied) as ydl:
-                return ydl.extract_info(url, download=download)
-        except yt_dlp.utils.DownloadError as e:
-            if _format_not_available_error(e):
-                raise yt_dlp.utils.DownloadError(
-                    f"No playable formats available for {url}. "
-                    "Ensure a JavaScript runtime (Node.js or Deno) is installed and in PATH, "
-                    "or that the video is not blocked/restricted in your region."
-                )
-            raise
-
-    def _retry_with_cookies(ydl_opts, err):
-        
-        if _is_youtube(url):
-            logger.warning("Retrying %s with cookies after: %s", url, err)
-            _inject_cookies(ydl_opts, url)
-            try:
-                return _run_ytdlp_cli(url, ydl_opts, download=download)
-            except yt_dlp.utils.DownloadError as e2:
-                if _format_not_available_error(e2):
-                    return _retry_with_best(ydl_opts)
-                raise
-        
-        if False:
-            if _is_youtube(url) and YTDLP_CLI and (_age_restricted_error(err) or _format_not_available_error(err)):
-                logger.warning("YouTube video hit restriction or missing formats — switching to yt-dlp CLI: %s", url)
-                _inject_cookies(ydl_opts, url)
-                return _run_ytdlp_cli(url, ydl_opts, download=download)
-
-            if _is_youtube(url):
-                logger.warning("Retrying %s with cookies after: %s", url, err)
-                _inject_cookies(ydl_opts, url)
-                try:
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        return ydl.extract_info(url, download=download)
-                except yt_dlp.utils.DownloadError as e2:
-                    if _format_not_available_error(e2):
-                        return _retry_with_best(ydl_opts)
-                    raise
-
-    try:
-        with yt_dlp.YoutubeDL(opts_clean) as ydl:
-            return ydl.extract_info(url, download=download)
-    except yt_dlp.utils.DownloadError as e:
-        if _age_restricted_error(e) or _format_not_available_error(e):
-            return _retry_with_cookies(opts, str(e))
-        raise
+    _inject_cookies(opts, url)
+    return _run_ytdlp_cli(url, opts, download=download)
 
 # Constants are now in settings.py
 
@@ -355,16 +324,13 @@ def _download_reddit_best_video(url, output_dir, video_id):
             'format': format_selector,
             'outtmpl': outtmpl,
         }
-        _apply_node_js(opts)
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-        try:
-            # Use the actual filepath from the info dict if available
-            if 'requested_downloads' in info and info['requested_downloads']:
-                return info['requested_downloads'][0]['filepath']
-            return ydl.prepare_filename(info)
-        except Exception:
-            raise RuntimeError('Could not determine downloaded file path for Reddit stream.')
+        _run_ytdlp_cli(url, opts, download=True)
+        # Find the downloaded file by globbing the template stem
+        stem = outtmpl.replace('%(ext)s', '*')
+        files = glob.glob(stem)
+        if files:
+            return max(files, key=os.path.getmtime)
+        raise RuntimeError('Could not determine downloaded file path for Reddit stream.')
 
     # Use 'bestvideo' and 'bestaudio' instead of hardcoded itags
     video_file = _download_stream('bestvideo', video_template)

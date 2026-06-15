@@ -9,7 +9,7 @@ from django.http import HttpResponse
 
 
 from celery.result import AsyncResult
-from .tasks import download_video_task, download_playlist_task
+from .tasks import download_video_task, download_playlist_task, _run_ytdlp_cli
 
 from django.core.cache import cache
 from django.conf import settings
@@ -88,37 +88,10 @@ def _format_not_available_error(exc):
     return 'requested format is not available' in msg
 
 def _extract_with_cookie_fallback(url, opts, download=False):
-    """Run yt-dlp without cookies first; retry with cookies on failure,
-    then fall back to generic 'best' format if still unavailable."""
+    """Always run yt-dlp CLI with cookies injected for YouTube URLs."""
     _apply_node_js(opts)
-    opts_clean = {k: v for k, v in opts.items() if k not in ('cookiefile', 'cookiesfrombrowser')}
-    _apply_node_js(opts_clean)
-
-    def _retry_with_best(ydl_opts):
-        logger.warning("Format unavailable – falling back to 'best' for %s", url)
-        ydl_opts['format'] = 'best'
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            return ydl.extract_info(url, download=download)
-
-    def _retry_with_cookies(ydl_opts, err):
-        if _is_youtube(url):
-            logger.warning("Retrying %s with cookies after: %s", url, err)
-            _inject_cookies(ydl_opts, url)
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    return ydl.extract_info(url, download=download)
-            except yt_dlp.utils.DownloadError as e2:
-                if _format_not_available_error(e2):
-                    return _retry_with_best(ydl_opts)
-                raise
-
-    try:
-        with yt_dlp.YoutubeDL(opts_clean) as ydl:
-            return ydl.extract_info(url, download=download)
-    except yt_dlp.utils.DownloadError as e:
-        if _age_restricted_error(e) or _format_not_available_error(e):
-            return _retry_with_cookies(opts, str(e))
-        raise
+    _inject_cookies(opts, url)
+    return _run_ytdlp_cli(url, opts, download=download)
 
 # ---------------------------------------------------------------------------
 # File cleanup registry — paths are deleted 1 hour after download
@@ -156,30 +129,29 @@ def _download_reddit_best_video(url, output_dir, video_id, request, noreturn=Fal
 
     opts = {'quiet': True}
     _apply_node_js(opts)
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        formats = info.get('formats', [])
-        
-        # Find best video-only format
-        best_v = None
-        for f in formats:
-            if f.get('vcodec') != 'none':
-                f_size = f.get('filesize') or 0
-                best_v_size = best_v.get('filesize', 0) if best_v else 0
-                if best_v is None or f_size > best_v_size:
-                    best_v = f
-        
-        # Find best audio-only format
-        best_a = None
-        for f in formats:
-            if f.get('acodec') != 'none':
-                f_size = f.get('filesize') or 0
-                best_a_size = best_a.get('filesize', 0) if best_a else 0
-                if best_a is None or f_size > best_a_size:
-                    best_a = f
-        
-        v_itag = best_v.get('format_id') if best_v else None
-        a_itag = best_a.get('format_id') if best_a else None
+    info = _run_ytdlp_cli(url, opts, download=False)
+    formats = info.get('formats', []) if info else []
+
+    # Find best video-only format
+    best_v = None
+    for f in formats:
+        if f.get('vcodec') != 'none':
+            f_size = f.get('filesize') or 0
+            best_v_size = best_v.get('filesize', 0) if best_v else 0
+            if best_v is None or f_size > best_v_size:
+                best_v = f
+
+    # Find best audio-only format
+    best_a = None
+    for f in formats:
+        if f.get('acodec') != 'none':
+            f_size = f.get('filesize') or 0
+            best_a_size = best_a.get('filesize', 0) if best_a else 0
+            if best_a is None or f_size > best_a_size:
+                best_a = f
+
+    v_itag = best_v.get('format_id') if best_v else None
+    a_itag = best_a.get('format_id') if best_a else None
 
     if not v_itag or not a_itag:
         raise RuntimeError(f"Could not find separate video and audio streams for Reddit video. Video: {v_itag}, Audio: {a_itag}")
@@ -467,16 +439,16 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
                 final_path = found[0]
             else:
                 raise FileNotFoundError("No subtitle file was downloaded. The video may not have subtitles in the requested language.")
-        else:
+        elif info:
             try:
                 final_path = info['requested_downloads'][0]['filepath']
-            except:
+            except Exception:
                 pass
 
-        title = info.get('title') or filename
-
-        if title:
-            video_id = title
+        if info:
+            title = info.get('title') or filename
+            if title:
+                video_id = title
 
         if noreturn:
             return final_path

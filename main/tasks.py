@@ -593,3 +593,77 @@ def update_ytdlp_task():
         logger.info("yt-dlp updated successfully.")
     except Exception as e:
         logger.error(f"Failed to update yt-dlp: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Analytics / GeoIP helpers
+# ---------------------------------------------------------------------------
+import os
+from .models import RequestLog, DailySummary
+
+try:
+    import geoip2.database
+
+    GEOIP2_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    GEOIP2_AVAILABLE = False
+
+
+def _get_geoip_db_path():
+    return getattr(
+        settings, "GEOIP_PATH", os.path.join(settings.BASE_DIR, "GeoLite2-City.mmdb")
+    )
+
+
+@shared_task
+def geolocate_request_task(log_id, ip):
+    """Enrich a RequestLog row with GeoIP data using a local MaxMind database."""
+    if not GEOIP2_AVAILABLE:
+        return
+
+    db_path = _get_geoip_db_path()
+    if not os.path.exists(db_path):
+        logger.warning(
+            "GeoIP database not found at %s. Skipping enrichment.", db_path
+        )
+        return
+
+    try:
+        with geoip2.database.Reader(db_path) as reader:
+            response = reader.city(ip)
+            RequestLog.objects.filter(id=log_id).update(
+                country_code=(response.country.iso_code or ""),
+                country_name=(response.country.name or ""),
+                city=(response.city.name or ""),
+                latitude=response.location.latitude,
+                longitude=response.location.longitude,
+            )
+    except Exception:
+        # Silently ignore private/range IP lookups
+        pass
+
+
+@shared_task
+def aggregate_daily_summary_task():
+    """Aggregate yesterday's stats into DailySummary."""
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.db.models import Count
+
+    today = timezone.now().date()
+    yesterday = today - timedelta(days=1)
+
+    logs = RequestLog.objects.filter(timestamp__date=yesterday)
+    total = logs.count()
+    downloads = logs.filter(is_download=True).count()
+    unique = logs.values("ip_address").distinct().count()
+
+    ds, _ = DailySummary.objects.update_or_create(
+        date=yesterday,
+        defaults={
+            "total_requests": total,
+            "unique_ips": unique,
+            "total_downloads": downloads,
+        },
+    )
+    return str(ds)

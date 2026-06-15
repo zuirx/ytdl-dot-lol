@@ -1,0 +1,206 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .analytics-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .analytics-card {
+      background: #417690;
+      color: white;
+      padding: 15px;
+      border-radius: 4px;
+    }
+    .analytics-card.alt {
+      background: #79aec8;
+    }
+    .analytics-card h3 {
+      margin: 0 0 5px;
+      font-size: 1.1em;
+    }
+    .analytics-card .big {
+      font-size: 2em;
+      margin: 0;
+    }
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 900px) {
+      .analytics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .analytics-module {
+      background: #fff;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .analytics-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .analytics-table th,
+    .analytics-table td {
+      text-align: left;
+      padding: 6px;
+      border-bottom: 1px solid #eee;
+    }
+    .analytics-table tr:hover {
+      background: #f9f9f9;
+    }
+    .analytics-link {
+      word-break: break-all;
+      font-size: 0.85em;
+      color: #417690;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    <h1>Analytics Dashboard</h1>
+
+    <div class="analytics-cards">
+      <div class="analytics-card">
+        <h3>Total Requests</h3>
+        <p class="big">{{ total_requests }}</p>
+        <small>Today: {{ requests_today }}</small>
+      </div>
+      <div class="analytics-card alt">
+        <h3>Unique IPs</h3>
+        <p class="big">{{ unique_ips_total }}</p>
+        <small>Today: {{ unique_ips_today }}</small>
+      </div>
+      <div class="analytics-card">
+        <h3>Downloads</h3>
+        <p class="big">{{ total_downloads }}</p>
+        <small>Today: {{ downloads_today }}</small>
+      </div>
+      <div class="analytics-card alt">
+        <h3>This Week</h3>
+        <p class="big">{{ requests_week }}</p>
+        <small>requests</small>
+      </div>
+    </div>
+
+    <div class="analytics-grid">
+      <div class="analytics-module">
+        <h2>Requests Last 7 Days</h2>
+        <canvas id="requestsChart" height="120"></canvas>
+      </div>
+      <div class="analytics-module">
+        <h2>Top Countries</h2>
+        <canvas id="countriesChart" height="180"></canvas>
+      </div>
+    </div>
+
+    <div class="analytics-grid">
+      <div class="analytics-module">
+        <h2>World Map</h2>
+        <div id="regions_div" style="width: 100%; height: 400px;"></div>
+      </div>
+      <div class="analytics-module">
+        <h2>Top Downloaded Links</h2>
+        <table class="analytics-table">
+          <thead>
+            <tr><th>Link</th><th>Count</th></tr>
+          </thead>
+          <tbody>
+            {% for link in top_links %}
+            <tr>
+              <td>
+                <a href="{{ link.download_url }}" target="_blank" class="analytics-link">{{ link.download_url|truncatechars:60 }}</a>
+              </td>
+              <td>{{ link.count }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2">No download data yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <script type="text/javascript">
+    (function() {
+      // Line chart – requests over the last 7 days
+      const reqCtx = document.getElementById('requestsChart').getContext('2d');
+      new Chart(reqCtx, {
+        type: 'line',
+        data: {
+          labels: [{% for d in daily_counts %}'{{ d.date|date:"M d" }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+          datasets: [{
+            label: 'Requests',
+            data: [{% for d in daily_counts %}{{ d.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            borderColor: '#417690',
+            tension: 0.3,
+            fill: true,
+            backgroundColor: 'rgba(65, 118, 144, 0.1)'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      // Bar chart – top countries
+      const ctryCtx = document.getElementById('countriesChart').getContext('2d');
+      new Chart(ctryCtx, {
+        type: 'bar',
+        data: {
+          labels: [{% for c in top_countries %}'{{ c.country_name|default:"Unknown" }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+          datasets: [{
+            label: 'Requests',
+            data: [{% for c in top_countries %}{{ c.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            backgroundColor: '#79aec8'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      // Google GeoChart – world map
+      google.charts.load('current', { packages: ['geochart'] });
+      google.charts.setOnLoadCallback(drawRegionsMap);
+      function drawRegionsMap() {
+        const rows = [
+          {% for m in map_data %}
+          ['{{ m.country_name|default:"Unknown" }}', {{ m.count }}]{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        ];
+        const data = new google.visualization.DataTable();
+        data.addColumn('string', 'Country');
+        data.addColumn('number', 'Requests');
+        if (rows.length) {
+          data.addRows(rows);
+        } else {
+          data.addRow(['No Data', 0]);
+        }
+        const options = {
+          backgroundColor: '#f8f8f8',
+          colorAxis: { colors: ['#d1e7f0', '#417690'] },
+          datalessRegionColor: '#e0e0e0'
+        };
+        const chart = new google.visualization.GeoChart(document.getElementById('regions_div'));
+        chart.draw(data, options);
+      }
+    })();
+  </script>
+{% endblock %}

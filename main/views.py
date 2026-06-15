@@ -510,7 +510,11 @@ def retrieve_playlist_yt(request, subpath):
             })
 
     return [
-        f"""<a href="{v['url']}" target="_blank">{v['title']}</a>  | {str(round(float(v['duration']/60),2))} minutes"""
+        {
+            'url': v['url'],
+            'title': v['title'] or 'Unknown',
+            'duration': str(round(float(v['duration'] / 60), 2)) if v['duration'] else '0',
+        }
         for v in video_list
     ]
 
@@ -524,7 +528,24 @@ def dl_sel_playlist_yt(request):
         return redirect('home_yt')
 
     selected_videos = request.POST.getlist('selected_videos')
-    list_vids = [v.split('<a href="')[1].split('"')[0] for v in selected_videos]
+    list_vids = []
+    for v in selected_videos:
+        v = v.strip()
+        if not v:
+            continue
+        if '<a href="' in v:
+            parts = v.split('<a href="')
+            if len(parts) > 1:
+                href_parts = parts[1].split('"')
+                if href_parts:
+                    list_vids.append(href_parts[0])
+        else:
+            list_vids.append(v)
+
+    if not list_vids:
+        report_error(request, "No valid video URLs found in selection.")
+        return redirect('home_yt')
+
     zip_type  = request.POST.get("download_type", 'audio')
 
     try:
@@ -643,11 +664,17 @@ def initiate_download(request):
     if selected_videos:
         list_vids = []
         for v in selected_videos:
-            parts = v.split('<a href="')
-            if len(parts) > 1:
-                href_parts = parts[1].split('"')
-                if href_parts:
-                    list_vids.append(href_parts[0])
+            v = v.strip()
+            if not v:
+                continue
+            if '<a href="' in v:
+                parts = v.split('<a href="')
+                if len(parts) > 1:
+                    href_parts = parts[1].split('"')
+                    if href_parts:
+                        list_vids.append(href_parts[0])
+            else:
+                list_vids.append(v)
 
         if not list_vids:
             return JsonResponse({'error': 'No valid video URLs found in selection.'}, status=400)

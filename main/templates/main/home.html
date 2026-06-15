@@ -341,7 +341,7 @@
                     onclick="const cb = this.querySelector('.video-checkbox'); if(event.target !== cb) cb.click();">
                     <input type="checkbox" name="selected_videos" value="{{ v.url }}" class="video-checkbox">
                     <div class="playlist-info">
-                        {{ v.title|safe }}
+                        <a href="{{ v.url }}" target="_blank">{{ v.title }}</a> | {{ v.duration }} minutes
                     </div>
                 </div>
                 {% endfor %}

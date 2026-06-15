@@ -73,8 +73,11 @@ def _apply_node_js(opts):
     major, _ = _get_node_version()
     if node_path and major >= 20:
         runtimes = opts.get('js_runtimes') or {}
-        if isinstance(runtimes, dict) and 'node' not in runtimes:
-            opts['js_runtimes'] = {**runtimes, 'node': {'path': node_path}}
+        if isinstance(runtimes, dict):
+            runtimes['node'] = {'path': node_path}
+        else:
+            runtimes = {'node': {'path': node_path}}
+        opts['js_runtimes'] = runtimes
     return opts
 
 def _ytdlp_cli_args(url, opts, download=True):
@@ -83,7 +86,20 @@ def _ytdlp_cli_args(url, opts, download=True):
         raise RuntimeError("yt-dlp CLI not found in PATH")
 
     args = [YTDLP_CLI]
-    if YTDLP_HAS_JS_RUNTIMES:
+
+    # JS runtimes — prefer explicit opts, then fall back to global flag
+    js_runtimes = opts.get('js_runtimes')
+    if js_runtimes:
+        if isinstance(js_runtimes, dict):
+            for name, cfg in js_runtimes.items():
+                if isinstance(cfg, dict) and cfg.get('path'):
+                    args.extend(['--js-runtimes', f"{name}:{cfg['path']}"])
+                else:
+                    args.extend(['--js-runtimes', name])
+        elif isinstance(js_runtimes, (list, tuple)):
+            for name in js_runtimes:
+                args.extend(['--js-runtimes', name])
+    elif YTDLP_HAS_JS_RUNTIMES and HAS_JS_RUNTIME:
         args.extend(['--js-runtimes', 'node'])
 
     if opts.get('quiet'):

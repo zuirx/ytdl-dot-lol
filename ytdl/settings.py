@@ -160,4 +160,4 @@ DIR_MIX = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
 
 # Temporary YouTube block toggle
-YOUTUBE_TEMPORARILY_BLOCKED = True
+YOUTUBE_TEMPORARILY_BLOCKED = False

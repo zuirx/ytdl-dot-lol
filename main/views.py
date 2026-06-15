@@ -87,7 +87,17 @@ def _apply_node_js(opts):
     try:
         node_path = subprocess.check_output(['where', 'node'], text=True, stderr=subprocess.DEVNULL).strip().split('\n')[0]
     except Exception:
-        node_path = 'node'
+        node_path = shutil.which('node') or 'node'
+
+    # Set top-level js_runtimes so _ytdlp_cli_args can emit --js-runtimes "node:/path/to/node"
+    runtimes = opts.get('js_runtimes') or {}
+    if isinstance(runtimes, dict):
+        runtimes['node'] = {'path': node_path}
+    else:
+        runtimes = {'node': {'path': node_path}}
+    opts['js_runtimes'] = runtimes
+
+    # Also keep extractor_args as fallback for embedded-library usage
     ea = opts.setdefault('extractor_args', {})
     youtube_ea = ea.setdefault('youtube', [])
     if isinstance(youtube_ea, list):

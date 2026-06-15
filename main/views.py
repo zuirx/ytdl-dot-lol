@@ -641,7 +641,17 @@ def initiate_download(request):
     cache.set(cache_key, dl_count + 1, 3600) # 1 hour timeout
 
     if selected_videos:
-        list_vids = [v.split('<a href="')[1].split('"')[0] for v in selected_videos]
+        list_vids = []
+        for v in selected_videos:
+            parts = v.split('<a href="')
+            if len(parts) > 1:
+                href_parts = parts[1].split('"')
+                if href_parts:
+                    list_vids.append(href_parts[0])
+
+        if not list_vids:
+            return JsonResponse({'error': 'No valid video URLs found in selection.'}, status=400)
+
         q = v_quality if download_type == 'video' else a_quality
         task = download_playlist_task.delay(list_vids, download_type=download_type, quality=q)
         return JsonResponse({'task_id': task.id})

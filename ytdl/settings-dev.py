@@ -116,7 +116,7 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # Application Constants
-MAX_VIDEO_DURATION = 7200  # 2 hours
+MAX_VIDEO_DURATION = 3600  # 2 hours
 DIR_DOWNLOAD = 'content-downloads'
 DIR_MIX = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'

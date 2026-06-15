@@ -130,8 +130,8 @@ Place the `cookie.txt` in the root directory of this project.
 ## Enforced Limits
 
 To ensure site stability, the following limits are enforced:
-- **Video Duration**: Maximum 2 hours per video.
-- **Rate Limit**: 50 downloads per hour per IP.
+- **Video Duration**: Maximum 1 hour per video.
+- **Rate Limit**: 5 downloads per hour per IP.
 - **Cleanup**: Downloaded files are automatically deleted from the server 1 hour after creation.
 
 ## Run locally on Windows

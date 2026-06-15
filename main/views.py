@@ -665,7 +665,7 @@ def initiate_download(request):
     ip = get_client_ip(request)
     cache_key = f"dl_count_{ip}"
     dl_count = cache.get(cache_key, 0)
-    MAX_DOWNLOADS_PER_HOUR = 50 # Keep local if preferred or move to settings later
+    MAX_DOWNLOADS_PER_HOUR = 5 # Keep local if preferred or move to settings later
 
     if dl_count >= MAX_DOWNLOADS_PER_HOUR:
         return JsonResponse({'error': f'Rate limit exceeded. Maximum {MAX_DOWNLOADS_PER_HOUR} downloads per hour allowed.'}, status=429)

@@ -18,11 +18,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 
-urlpatterns = [
-    path('', include('main.urls')),
-]
+urlpatterns = []
 
 if settings.DEBUG:
     urlpatterns += [
         path("admin/", admin.site.urls),
     ]
+
+urlpatterns += [
+    path('', include('main.urls')),
+]
+

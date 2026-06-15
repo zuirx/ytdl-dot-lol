@@ -217,21 +217,33 @@ def _extract_with_cookie_fallback(url, opts, download=False):
             raise
 
     def _retry_with_cookies(ydl_opts, err):
-        if _is_youtube(url) and YTDLP_CLI and (_age_restricted_error(err) or _format_not_available_error(err)):
-            logger.warning("YouTube video hit restriction or missing formats — switching to yt-dlp CLI: %s", url)
-            _inject_cookies(ydl_opts, url)
-            return _run_ytdlp_cli(url, ydl_opts, download=download)
-
+        
         if _is_youtube(url):
             logger.warning("Retrying %s with cookies after: %s", url, err)
             _inject_cookies(ydl_opts, url)
             try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    return ydl.extract_info(url, download=download)
+                return _run_ytdlp_cli(url, ydl_opts, download=download)
             except yt_dlp.utils.DownloadError as e2:
                 if _format_not_available_error(e2):
                     return _retry_with_best(ydl_opts)
                 raise
+        
+        if False:
+            if _is_youtube(url) and YTDLP_CLI and (_age_restricted_error(err) or _format_not_available_error(err)):
+                logger.warning("YouTube video hit restriction or missing formats — switching to yt-dlp CLI: %s", url)
+                _inject_cookies(ydl_opts, url)
+                return _run_ytdlp_cli(url, ydl_opts, download=download)
+
+            if _is_youtube(url):
+                logger.warning("Retrying %s with cookies after: %s", url, err)
+                _inject_cookies(ydl_opts, url)
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        return ydl.extract_info(url, download=download)
+                except yt_dlp.utils.DownloadError as e2:
+                    if _format_not_available_error(e2):
+                        return _retry_with_best(ydl_opts)
+                    raise
 
     try:
         with yt_dlp.YoutubeDL(opts_clean) as ydl:

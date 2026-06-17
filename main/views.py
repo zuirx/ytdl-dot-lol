@@ -9,7 +9,14 @@ from django.http import HttpResponse
 
 
 from celery.result import AsyncResult
-from .tasks import download_video_task, download_playlist_task, _run_ytdlp_cli
+from .tasks import (
+    download_video_task,
+    download_playlist_task,
+    zip_folder_task,
+    _extract_with_cookie_fallback,
+    _age_restricted_error,
+    _format_not_available_error,
+)
 
 from django.core.cache import cache
 from django.conf import settings
@@ -47,7 +54,6 @@ DIR_MIX      = settings.DIR_MIX
 DIR_PLAYLIST = settings.DIR_PLAYLIST
 GITREPOLINK  = 'https://api.github.com/repos/zuirx/ytdl-dot-lol/commits' # Change this for your fork!
 
-COOKIES_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, 'cookie.txt'))
 
 def _is_youtube(url):
     return 'youtube.com' in url or 'youtu.be' in url
@@ -67,56 +73,6 @@ def _check_youtube_block_json(url):
         return JsonResponse({'error': YOUTUBE_BLOCKED_MSG}, status=503)
     return None
 
-def _inject_cookies(opts, url):
-    if not _is_youtube(url):
-        return opts
-    if os.path.exists(COOKIES_PATH):
-        opts['cookiefile'] = COOKIES_PATH
-    else:
-        opts['cookiesfrombrowser'] = ('chrome', None, None, None)
-    return opts
-
-def _age_restricted_error(exc):
-    msg = str(exc).lower()
-    return any(p in msg for p in ('sign in to confirm your age', 'confirm your age', 'age restriction', 'this video may be inappropriate'))
-
-import subprocess
-
-def _apply_node_js(opts):
-    """Ensure yt-dlp can find node.exe for YouTube n-sig challenges."""
-    try:
-        node_path = subprocess.check_output(['where', 'node'], text=True, stderr=subprocess.DEVNULL).strip().split('\n')[0]
-    except Exception:
-        node_path = shutil.which('node') or 'node'
-
-    # Set top-level js_runtimes so _ytdlp_cli_args can emit --js-runtimes "node:/path/to/node"
-    runtimes = opts.get('js_runtimes') or {}
-    if isinstance(runtimes, dict):
-        runtimes['node'] = {'path': node_path}
-    else:
-        runtimes = {'node': {'path': node_path}}
-    opts['js_runtimes'] = runtimes
-
-    # Also keep extractor_args as fallback for embedded-library usage
-    ea = opts.setdefault('extractor_args', {})
-    youtube_ea = ea.setdefault('youtube', [])
-    if isinstance(youtube_ea, list):
-        youtube_ea.append(f'player_js={node_path}')
-        youtube_ea.append('js_runtimes=node')
-    elif isinstance(youtube_ea, dict):
-        youtube_ea.setdefault('player_js', node_path)
-        youtube_ea.setdefault('js_runtimes', ['node'])
-    return opts
-
-def _format_not_available_error(exc):
-    msg = str(exc).lower()
-    return 'requested format is not available' in msg
-
-def _extract_with_cookie_fallback(url, opts, download=False):
-    """Always run yt-dlp CLI with cookies injected for YouTube URLs."""
-    _apply_node_js(opts)
-    _inject_cookies(opts, url)
-    return _run_ytdlp_cli(url, opts, download=download)
 
 # ---------------------------------------------------------------------------
 # File cleanup registry — paths are deleted 1 hour after download
@@ -153,8 +109,7 @@ def _download_reddit_best_video(url, output_dir, video_id, request, noreturn=Fal
     os.makedirs(output_dir, exist_ok=True)
 
     opts = {'quiet': True}
-    _apply_node_js(opts)
-    info = _run_ytdlp_cli(url, opts, download=False)
+    info = _extract_with_cookie_fallback(url, opts, download=False)
     formats = info.get('formats', []) if info else []
 
     # Find best video-only format
@@ -529,7 +484,6 @@ def retrieve_playlist_yt(request, subpath):
 
 
 # zip_folder is now imported from .tasks or handled there
-from .tasks import zip_folder_task as zip_folder
 
 
 def dl_sel_playlist_yt(request):
@@ -593,7 +547,7 @@ def dl_sel_playlist_yt(request):
             _extract_with_cookie_fallback(v, params, download=True)
 
         zip_path = f'{DIR_PLAYLIST}/Playlist_{num_id}.zip'
-        zip_folder(pl_temp_dir, zip_path)
+        zip_folder_task(pl_temp_dir, zip_path)
 
         _schedule_delete(pl_temp_dir)
         _schedule_delete(zip_path)

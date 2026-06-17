@@ -4,239 +4,99 @@ import logging
 import zipfile
 import shutil
 import subprocess
-import json
 import glob
 from celery import shared_task
 from django.conf import settings
 import time
 
-YTDLP_CLI = shutil.which('yt-dlp')
-
-
-def _ytdlp_supports_js_runtimes(cli_path=None):
-    path = cli_path or YTDLP_CLI
-    if not path:
-        return False
-    try:
-        result = subprocess.run([path, '--help'], capture_output=True, text=True)
-        return '--js-runtimes' in result.stdout
-    except Exception:
-        return False
-
-
-def _get_node_version():
-    """Return (major, full_version_string) or (0, None) if node missing."""
-    node = shutil.which('node')
-    if not node:
-        return 0, None
-    try:
-        out = subprocess.run([node, '-v'], capture_output=True, text=True).stdout.strip()
-        # v18.20.4 -> 18
-        major = int(out.lstrip('v').split('.')[0])
-        return major, out
-    except Exception:
-        return 0, None
-
-
-def _has_js_runtime():
-    return bool(shutil.which('deno')) or (_get_node_version()[0] >= 20)
-
-
-YTDLP_HAS_JS_RUNTIMES = _ytdlp_supports_js_runtimes()
-HAS_JS_RUNTIME = _has_js_runtime()
-NODE_MAJOR, NODE_VER_STR = _get_node_version()
-
 logger = logging.getLogger(__name__)
 
 COOKIES_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, 'cookie.txt'))
 
+# Default yt-dlp options applied to every YouTube extraction/download
+YTDL_OPTS = {
+    'verbose': True,
+    'js_runtimes': {'node': {'path': settings.NODEJS}},
+    'extractor_args': {'youtube': {'player_client': ['web']}},
+    'remote_components': {'ejs:github'},
+    'cookiesfrombrowser': ('chrome', None, None, None),
+}
+
 def _is_youtube(url):
     return 'youtube.com' in url or 'youtu.be' in url
-
-def _inject_cookies(opts, url):
-    if not _is_youtube(url):
-        return opts
-    if os.path.exists(COOKIES_PATH):
-        opts['cookiefile'] = COOKIES_PATH
-    else:
-        opts['cookiesfrombrowser'] = ('chrome', None, None, None)
-    return opts
 
 def _age_restricted_error(exc):
     msg = str(exc).lower()
     return any(p in msg for p in ('sign in to confirm your age', 'confirm your age', 'age restriction', 'this video may be inappropriate'))
 
-def _apply_node_js(opts):
-    """Ensure yt-dlp can find node.exe for YouTube n-sig challenges.
-    Only injects node if version >= 20, otherwise leaves it to deno or default."""
-    node_path = shutil.which('node')
-    major, _ = _get_node_version()
-    if node_path and major >= 20:
-        runtimes = opts.get('js_runtimes') or {}
-        if isinstance(runtimes, dict):
-            runtimes['node'] = {'path': node_path}
-        else:
-            runtimes = {'node': {'path': node_path}}
-        opts['js_runtimes'] = runtimes
-    return opts
-
-def _ytdlp_cli_args(url, opts, download=True):
-    """Build yt-dlp CLI argument list from Python opts dict."""
-    if not YTDLP_CLI:
-        raise RuntimeError("yt-dlp CLI not found in PATH")
-
-    args = [YTDLP_CLI]
-
-    # JS runtimes — prefer explicit opts, then fall back to global flag
-    js_runtimes = opts.get('js_runtimes')
-    if js_runtimes:
-        if isinstance(js_runtimes, dict):
-            for name, cfg in js_runtimes.items():
-                if isinstance(cfg, dict) and cfg.get('path'):
-                    args.extend(['--js-runtimes', f"{name}:{cfg['path']}"])
-                else:
-                    args.extend(['--js-runtimes', name])
-        elif isinstance(js_runtimes, (list, tuple)):
-            for name in js_runtimes:
-                args.extend(['--js-runtimes', name])
-    elif YTDLP_HAS_JS_RUNTIMES and HAS_JS_RUNTIME:
-        args.extend(['--js-runtimes', 'node'])
-
-    if opts.get('quiet'):
-        args.append('-q')
-    if opts.get('nocheckcertificate'):
-        args.append('--no-check-certificate')
-    if opts.get('ignoreerrors'):
-        args.append('--ignore-errors')
-
-    if opts.get('extract_flat'):
-        args.append('--flat-playlist')
-
-    if not download:
-        args.extend(['-J', '--no-warnings'])
-    else:
-        if opts.get('format'):
-            args.extend(['-f', opts['format']])
-        if opts.get('outtmpl'):
-            args.extend(['-o', opts['outtmpl']])
-        if opts.get('merge_output_format'):
-            args.extend(['--merge-output-format', opts['merge_output_format']])
-        if opts.get('writethumbnail'):
-            args.append('--write-thumbnail')
-
-        for pp in opts.get('postprocessors', []):
-            key = pp.get('key', '')
-            if key == 'FFmpegExtractAudio':
-                args.append('-x')
-                if pp.get('preferredcodec'):
-                    args.extend(['--audio-format', pp['preferredcodec']])
-                if pp.get('preferredquality'):
-                    args.extend(['--audio-quality', pp['preferredquality']])
-            elif key == 'EmbedThumbnail':
-                args.append('--embed-thumbnail')
-            elif key == 'FFmpegThumbnailsConvertor':
-                if pp.get('format'):
-                    args.extend(['--convert-thumbnails', pp['format']])
-            elif key == 'FFmpegMetadata':
-                args.append('--add-metadata')
-            elif key == 'FFmpegSubtitlesConvertor':
-                if pp.get('format'):
-                    args.extend(['--convert-subs', pp['format']])
-
-    if opts.get('writesubtitles'):
-        args.append('--write-subs')
-    if opts.get('writeautomaticsub'):
-        args.append('--write-auto-subs')
-    if opts.get('subtitleslangs'):
-        langs = opts['subtitleslangs']
-        if isinstance(langs, (list, tuple)):
-            args.extend(['--sub-langs', ','.join(str(l) for l in langs)])
-        else:
-            args.extend(['--sub-langs', str(langs)])
-    if opts.get('skip_download'):
-        args.append('--skip-download')
-
-    # Cookies
-    cookiefile = opts.get('cookiefile')
-    if cookiefile and os.path.exists(cookiefile):
-        args.extend(['--cookies', cookiefile])
-    elif opts.get('cookiesfrombrowser'):
-        browser = opts['cookiesfrombrowser'][0] if isinstance(opts['cookiesfrombrowser'], tuple) else opts['cookiesfrombrowser']
-        args.extend(['--cookies-from-browser', browser])
-
-    args.append(url)
-    return args
-
-
-def _run_ytdlp_cli(url, opts, download=False, _retried=False):
-    """Run yt-dlp CLI and return info dict (if not download) or None."""
-    global YTDLP_CLI, YTDLP_HAS_JS_RUNTIMES, HAS_JS_RUNTIME, NODE_MAJOR, NODE_VER_STR
-
-    args = _ytdlp_cli_args(url, opts, download=download)
-    logger.info("Running yt-dlp CLI: %s", ' '.join(args))
-    result = subprocess.run(args, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        stderr = result.stderr.strip() if result.stderr else ''
-        stdout = result.stdout.strip() if result.stdout else ''
-        combined = (stdout + '\n' + stderr).lower()
-
-        # 1) Node installed but too old for yt-dlp
-        if NODE_MAJOR and NODE_MAJOR < 20 and 'unsupported' in combined:
-            raise yt_dlp.utils.DownloadError(
-                f"YouTube extraction failed: Node.js {NODE_VER_STR} is installed "
-                "but yt-dlp considers it unsupported. Upgrade to Node.js 20+ "
-                "(e.g. 'npm install -g n && n 22' or use your distro's Node 20 repo), "
-                "then restart your workers."
-            )
-
-        # 2) No usable JS runtime at all
-        missing_runtime = any(
-            phrase in combined
-            for phrase in (
-                'n challenge solving failed',
-                'only images are available',
-                'no supported javascript runtime',
-                'requested format is not available',
-            )
-        )
-
-        if missing_runtime and not HAS_JS_RUNTIME:
-            raise yt_dlp.utils.DownloadError(
-                "YouTube extraction failed: no usable JavaScript runtime found. "
-                "Install Node.js 20+ or Deno, then restart your workers. "
-                f"Original error: {stderr or stdout or 'Unknown error'}"
-            )
-
-        raise yt_dlp.utils.DownloadError(f"yt-dlp CLI failed: {stderr or stdout or 'Unknown error'}")
-
-    if not download:
-        output = result.stdout.strip()
-        try:
-            return json.loads(output)
-        except json.JSONDecodeError:
-            # yt-dlp sometimes prints warnings before JSON; grab the last JSON object
-            for line in reversed(output.splitlines()):
-                line = line.strip()
-                if line.startswith('{') and line.endswith('}'):
-                    try:
-                        return json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-            raise yt_dlp.utils.DownloadError(f"Could not parse yt-dlp JSON output: {output[:500]}")
-
-    return None
-
+def _auth_error(exc):
+    """Detect auth/bot/age-restriction failures that may be fixed with different cookies."""
+    msg = str(exc).lower()
+    return any(p in msg for p in (
+        'sign in to confirm',
+        'not a bot',
+        'use --cookies-from-browser or --cookies',
+        'confirm your age',
+        'age restriction',
+        'this video may be inappropriate',
+        'requested format is not available',
+    ))
 
 def _format_not_available_error(exc):
     msg = str(exc).lower()
     return 'requested format is not available' in msg
 
 def _extract_with_cookie_fallback(url, opts, download=False):
-    """Always run yt-dlp CLI with cookies injected for YouTube URLs."""
-    _apply_node_js(opts)
-    _inject_cookies(opts, url)
-    return _run_ytdlp_cli(url, opts, download=download)
+    """Run yt-dlp via Python library with YouTube defaults + cookies.
+
+    Tries strategies in order:
+      1) Merged opts (YTDL_OPTS + caller opts) – uses browser cookies by default.
+      2) cookie.txt file if present and non-empty.
+      3) Force browser cookies for age-restricted videos when cookiefile fails.
+    """
+    if _is_youtube(url):
+        merged = YTDL_OPTS.copy()
+        merged.update(opts)
+        opts = merged
+
+    tried_cookiefile = False
+    tried_browser = bool(opts.get('cookiesfrombrowser'))
+
+    # ---- Strategy 1: whatever came in (usually browser cookies from YTDL_OPTS) ----
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(url, download=download)
+    except yt_dlp.utils.DownloadError as exc:
+        last_exc = exc
+
+        # ---- Strategy 2: fallback to cookie.txt ----
+        if _auth_error(exc) and not tried_cookiefile:
+            if os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 0:
+                logger.warning('Browser cookies failed for %s, trying cookie.txt', url)
+                tried_cookiefile = True
+                cookie_opts = opts.copy()
+                cookie_opts.pop('cookiesfrombrowser', None)
+                cookie_opts['cookiefile'] = COOKIES_PATH
+                try:
+                    with yt_dlp.YoutubeDL(cookie_opts) as ydl:
+                        return ydl.extract_info(url, download=download)
+                except yt_dlp.utils.DownloadError as exc2:
+                    last_exc = exc2
+
+        # ---- Strategy 3: age-restricted + cookiefile failed -> force browser cookies ----
+        if _age_restricted_error(last_exc) and tried_cookiefile and not tried_browser:
+            logger.warning('cookie.txt failed for age-restricted %s, forcing browser cookies', url)
+            tried_browser = True
+            browser_opts = opts.copy()
+            browser_opts.pop('cookiefile', None)
+            browser_opts['cookiesfrombrowser'] = ('chrome', None, None, None)
+            try:
+                with yt_dlp.YoutubeDL(browser_opts) as ydl:
+                    return ydl.extract_info(url, download=download)
+            except yt_dlp.utils.DownloadError as exc3:
+                last_exc = exc3
+
+        raise last_exc
 
 # Constants are now in settings.py
 
@@ -340,7 +200,7 @@ def _download_reddit_best_video(url, output_dir, video_id):
             'format': format_selector,
             'outtmpl': outtmpl,
         }
-        _run_ytdlp_cli(url, opts, download=True)
+        _extract_with_cookie_fallback(url, opts, download=True)
         # Find the downloaded file by globbing the template stem
         stem = outtmpl.replace('%(ext)s', '*')
         files = glob.glob(stem)

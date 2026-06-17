@@ -1,6 +1,8 @@
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import shutil
+import sys
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -160,4 +162,15 @@ DIR_MIX = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
 
 # Temporary YouTube block toggle
-YOUTUBE_TEMPORARILY_BLOCKED = True
+YOUTUBE_TEMPORARILY_BLOCKED = False
+
+# Node.js path for yt-dlp JS runtime (used by n-sig challenges on YouTube)
+NODEJS_WIN = r'C:\Program Files\nodejs\node.exe'
+NODEJS_LIN = '/usr/local/bin/node'
+NODEJS = NODEJS_WIN if sys.platform == 'win32' else NODEJS_LIN
+# Allow override via env var
+if os.getenv('NODEJS_PATH'):
+    NODEJS = os.getenv('NODEJS_PATH')
+# Fallback to whatever is in PATH
+if not os.path.exists(NODEJS):
+    NODEJS = shutil.which('node') or NODEJS

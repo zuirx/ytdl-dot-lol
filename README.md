@@ -168,11 +168,21 @@ You need to run three separate processes:
 
 ## Enforced Limits
 
-To ensure site stability, the following limits are enforced:
-- **Video Duration**: Maximum 2 hours per video.
-- **Rate Limit**: 5 downloads per hour per IP.
-- **Cleanup**: Downloaded files are automatically deleted from the server 1 hour after creation.
-- **Storage**: Very large files (>500MB) are removed after 30 minutes; total storage is capped at ~100GB.
+To ensure site stability and avoid abuse, the following limits are enforced:
+
+| Limit | Value | Scope |
+|-------|-------|-------|
+| **YouTube Daily Links** | 5 links per 24h per IP | YouTube URLs only |
+| **Downloads per Hour** | 5 per IP | All platforms |
+| **Video Duration** | 2 hours maximum | Per video |
+| **Auto-Cleanup** | 1 hour after download | All downloaded files |
+| **Large-File Cleanup** | >500MB removed after 30 min | All files |
+| **Total Storage Cap** | ~100GB | Entire server |
+
+### Why the YouTube daily limit?
+YouTube aggressively rate-limits and can block IPs that perform too many extractions. The 5-links-per-day cap protects your server's IP reputation and keeps the service alive for everyone.
+
+> **Note:** The daily limit is reset every 24 hours per IP. Other platforms (Reddit, etc.) are **not** affected by this limit.
 
 ---
 

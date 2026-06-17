@@ -67,6 +67,33 @@ def _check_youtube_block(request, url):
         return redirect('home_yt')
     return None
 
+def _check_youtube_daily_limit(request, url):
+    """Return a redirect response if the IP has exceeded the daily YouTube limit, else None."""
+    if not url or not _is_youtube(url):
+        return None
+    ip = get_client_ip(request)
+    cache_key = f"yt_daily_{ip}"
+    count = cache.get(cache_key, 0)
+    limit = getattr(settings, 'YOUTUBE_DAILY_LIMIT', 5)
+    if count >= limit:
+        report_error(request, f"YouTube daily limit reached ({limit} links per day).")
+        return redirect('home_yt')
+    cache.set(cache_key, count + 1, 86400)  # 24 hours
+    return None
+
+def _check_youtube_daily_limit_json(request, url):
+    """Return a JsonResponse if the IP has exceeded the daily YouTube limit, else None."""
+    if not url or not _is_youtube(url):
+        return None
+    ip = get_client_ip(request)
+    cache_key = f"yt_daily_{ip}"
+    count = cache.get(cache_key, 0)
+    limit = getattr(settings, 'YOUTUBE_DAILY_LIMIT', 5)
+    if count >= limit:
+        return JsonResponse({'error': f'YouTube daily limit reached ({limit} links per day).'}, status=429)
+    cache.set(cache_key, count + 1, 86400)  # 24 hours
+    return None
+
 def _check_youtube_block_json(url):
     """Return a JsonResponse if YouTube is temporarily blocked, else None."""
     if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False) and url and _is_youtube(url):
@@ -177,8 +204,14 @@ def home_yt(request, subpath=''):
         return block
 
     if "https://www.youtube.com/watch" in subpath:
+        limit = _check_youtube_daily_limit(request, subpath)
+        if limit:
+            return limit
         return download_yt(request, subpath, video_id, middle="?v=")
     elif "https://youtu.be" in subpath:
+        limit = _check_youtube_daily_limit(request, subpath)
+        if limit:
+            return limit
         return download_yt(request, subpath)
 
     lastup, lastuptxt = '', ''
@@ -204,6 +237,10 @@ def home_yt(request, subpath=''):
         block = _check_youtube_block(request, url)
         if block:
             return block
+
+        limit = _check_youtube_daily_limit(request, url)
+        if limit:
+            return limit
 
         match action:
             case 'info':
@@ -321,6 +358,10 @@ def dl_from_opt(request):
     block = _check_youtube_block(request, url)
     if block:
         return block
+
+    limit = _check_youtube_daily_limit(request, url)
+    if limit:
+        return limit
 
     if itag.startswith('sub:'):
         return download_yt(request, subpath=url, type='subtitle', itag=itag[4:], typeitag='srt')
@@ -569,6 +610,10 @@ def mix_av(request):
     if block:
         return block
 
+    limit = _check_youtube_daily_limit(request, url)
+    if limit:
+        return limit
+
     video_options = [k for k, v in request.POST.items() if k.endswith('_vcheck') and v == 'on']
     audio_options = [k for k, v in request.POST.items() if k.endswith('_acheck') and v == 'on']
 
@@ -656,6 +701,11 @@ def initiate_download(request):
             if any(_is_youtube(v) for v in list_vids):
                 return JsonResponse({'error': YOUTUBE_BLOCKED_MSG}, status=503)
 
+        for v in list_vids:
+            limit = _check_youtube_daily_limit_json(request, v)
+            if limit:
+                return limit
+
         q = v_quality if download_type == 'video' else a_quality
         task = download_playlist_task.delay(list_vids, download_type=download_type, quality=q)
         return JsonResponse({'task_id': task.id})
@@ -683,6 +733,10 @@ def initiate_download(request):
     block = _check_youtube_block_json(url)
     if block:
         return block
+
+    limit = _check_youtube_daily_limit_json(request, url)
+    if limit:
+        return limit
 
     q = v_quality if type == 'video' else a_quality
     task = download_video_task.delay(url, type=type, itag=itag, typeitag=typeitag, quality=q)

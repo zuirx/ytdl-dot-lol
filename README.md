@@ -12,7 +12,10 @@ You can see it working at: https://ytdl.lol
 - **Redis**: Used as the broker and backend for Celery.
 - **FFmpeg**: Required for audio conversion and mixing.
 - **Celery**: For background task management.
-- **Node.js 22+**: Required for YouTube age-restricted content and n-sig challenge solving.
+- **Node.js 22+**: **Required** for YouTube n-sig challenge solving (see [Node.js Setup](#nodejs-setup)).
+- **Google Chrome**: **Required** with a logged-in Google account for YouTube cookie extraction (see [Chrome Setup](#chrome-setup)).
+
+---
 
 ## Installation
 
@@ -39,6 +42,8 @@ You can see it working at: https://ytdl.lol
    Create a `.env` file in the root directory:
    ```env
    SECRET_KEY="your-secure-secret-key"
+   # Optional: override the Node.js path if not detected automatically
+   # NODEJS_PATH="C:\Program Files\nodejs\node.exe"
    ```
 
 5. **Prepare Static Files**:
@@ -67,26 +72,78 @@ You can see it working at: https://ytdl.lol
    sudo systemctl start redis-server
    ```
 
-7. **Install Node.js 22+**:
+---
 
-   ### Linux (Ubuntu/Debian)
-   Using NodeSource:
-   ```bash
-   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-   sudo apt install -y nodejs
-   ```
-   Or using [nvm](https://github.com/nvm-sh/nvm):
-   ```bash
-   nvm install 22
-   nvm use 22
-   ```
+## Node.js Setup
 
-   ### Windows
-   Download the installer from [nodejs.org](https://nodejs.org/) (LTS 22.x) or use [nvm-windows](https://github.com/coreybutler/nvm-windows):
-   ```powershell
-   nvm install 22
-   nvm use 22
-   ```
+**Node.js 22+ is mandatory.** yt-dlp uses it internally to solve JavaScript challenges (`n-sig`) required for almost all YouTube downloads.
+
+### Linux (Ubuntu/Debian)
+Using NodeSource:
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+Or using [nvm](https://github.com/nvm-sh/nvm):
+```bash
+nvm install 22
+nvm use 22
+```
+
+### Windows
+Download the installer from [nodejs.org](https://nodejs.org/) (LTS 22.x) or use [nvm-windows](https://github.com/coreybutler/nvm-windows):
+```powershell
+nvm install 22
+nvm use 22
+```
+
+### Automatic Detection
+The application tries to detect Node.js automatically:
+1. Uses `settings.NODEJS_WIN` (Windows) or `settings.NODEJS_LIN` (Linux) defaults.
+2. Falls back to the `NODEJS_PATH` environment variable if set.
+3. Falls back to whichever `node` is found in the system `PATH`.
+
+If you installed Node.js in a custom location, set `NODEJS_PATH` in your `.env`.
+
+---
+
+## Chrome Setup
+
+**Google Chrome with a signed-in Google account is strongly recommended.** The application extracts cookies directly from Chrome to authenticate YouTube requests. Without this, you will likely hit bot checks and age-restriction blocks.
+
+### Steps
+1. Install **Google Chrome** (Stable channel).
+2. **Sign in** to your Google account inside Chrome.
+3. Make sure Chrome is closed when the worker starts if you are on Windows (the cookie database locks while Chrome is running).
+4. The app reads cookies from Chrome automatically — **no manual cookie export is required** in most cases.
+
+### Manual Cookie Fallback (Optional)
+If Chrome cookie extraction fails (e.g., on a headless server), you can place a `cookie.txt` in the project root. The app will fall back to it automatically.
+
+To generate the file from a desktop machine:
+```bash
+yt-dlp --cookies-from-browser chrome --cookies "/path/to/ytdl-dot-lol/cookie.txt" "https://www.youtube.com"
+```
+
+Then copy `cookie.txt` to your server.
+
+---
+
+## Age-Restriction (YouTube)
+
+In order to make age-restricted and bot-protected videos from YouTube to work, you will need:
+
+1. **Node.js 22+** installed and available (see [Node.js Setup](#nodejs-setup)).
+2. **Google Chrome** installed with a logged-in, age-verified Google account (see [Chrome Setup](#chrome-setup)).
+3. The app automatically configures:
+   - `player_client: web`
+   - `js_runtimes: node`
+   - `remote_components: ejs:github`
+   - `cookiesfrombrowser: chrome`
+
+No extra configuration is needed if Chrome and Node.js are properly installed.
+
+---
 
 ## Running
 
@@ -107,32 +164,17 @@ You need to run three separate processes:
    celery -A ytdl beat -l info
    ```
 
-## Age-Restriction (YouTube)
-
-In order to make age restriction from YouTube to work, you will need:
-
-1. **Node.js 22+** installed and available in your system's `PATH`. yt-dlp uses it to solve JavaScript challenges (n-sig) required for age-restricted videos.
-2. A valid **cookie file** from an age-verified YouTube account.
-
-### Getting your cookie file
-
-- Make sure you have `yt-dlp` CLI installed.
-- Log in to YouTube (with age verified) in Chrome.
-- Close Chrome completely (so the cookie database is not locked).
-- Save your `cookie.txt` with the command:
-
-```bash
-yt-dlp --cookies-from-browser chrome --cookies "/path/to/ytdl-dot-lol/cookie.txt" "https://www.youtube.com"
-```
-
-Place the `cookie.txt` in the root directory of this project.
+---
 
 ## Enforced Limits
 
 To ensure site stability, the following limits are enforced:
-- **Video Duration**: Maximum 1 hour per video.
+- **Video Duration**: Maximum 2 hours per video.
 - **Rate Limit**: 5 downloads per hour per IP.
 - **Cleanup**: Downloaded files are automatically deleted from the server 1 hour after creation.
+- **Storage**: Very large files (>500MB) are removed after 30 minutes; total storage is capped at ~100GB.
+
+---
 
 ## Run locally on Windows
 
@@ -145,6 +187,8 @@ python -m celery -A ytdl beat -l info
 ```bash
 python -m celery -A ytdl worker --pool=solo
 ```
+
+---
 
 ## License
 

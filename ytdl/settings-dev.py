@@ -121,9 +121,6 @@ DIR_DOWNLOAD = 'content-downloads'
 DIR_MIX = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
 
-# Temporary YouTube block toggle
-YOUTUBE_TEMPORARILY_BLOCKED = False
-
 # Node.js path for yt-dlp JS runtime (used by n-sig challenges on YouTube)
 NODEJS_WIN = r'C:\Program Files\nodejs\node.exe'
 NODEJS_LIN = '/usr/local/bin/node'

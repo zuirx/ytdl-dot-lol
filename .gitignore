@@ -180,6 +180,8 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+## YTDL-DOT-LOL IGNORANGE
+
 TODO.md
 
 /ytdl-downloads
@@ -189,8 +191,6 @@ TODO.md
 
 ytdl/secret_key.py
 /staticfiles
-
-upytdlp-deb.sh
 
 main/templates/main/ads_head.html
 main/templates/main/ads_body.html

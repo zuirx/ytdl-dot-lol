@@ -62,7 +62,7 @@ YOUTUBE_BLOCKED_MSG = "YouTube downloads are currently unavailable and will be r
 
 def _check_youtube_block(request, url):
     """Return a redirect response if YouTube is temporarily blocked, else None."""
-    if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False) and url and _is_youtube(url):
+    if False and url and _is_youtube(url):
         report_error(request, YOUTUBE_BLOCKED_MSG)
         return redirect('home_yt')
     return None
@@ -96,7 +96,7 @@ def _check_youtube_daily_limit_json(request, url):
 
 def _check_youtube_block_json(url):
     """Return a JsonResponse if YouTube is temporarily blocked, else None."""
-    if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False) and url and _is_youtube(url):
+    if False and url and _is_youtube(url):
         return JsonResponse({'error': YOUTUBE_BLOCKED_MSG}, status=503)
     return None
 
@@ -338,6 +338,8 @@ def home_yt(request, subpath=''):
     except:
         ytdlpver = 'unknown'
 
+    warning = ""
+
     return render(request, 'main/home.html', {
         'theme':     request.COOKIES.get('theme'),
         'ytdlpver':  ytdlpver,
@@ -345,6 +347,7 @@ def home_yt(request, subpath=''):
         'lastuptxt': lastuptxt,
         'lastuptdy': lastuptdy,
         'listvid':   listvid,
+        'warning': warning,
     })
 
 
@@ -550,7 +553,7 @@ def dl_sel_playlist_yt(request):
         report_error(request, "No valid video URLs found in selection.")
         return redirect('home_yt')
 
-    if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False):
+    if False:
         if any(_is_youtube(v) for v in list_vids):
             report_error(request, YOUTUBE_BLOCKED_MSG)
             return redirect('home_yt')
@@ -697,7 +700,7 @@ def initiate_download(request):
         if not list_vids:
             return JsonResponse({'error': 'No valid video URLs found in selection.'}, status=400)
 
-        if getattr(settings, 'YOUTUBE_TEMPORARILY_BLOCKED', False):
+        if False:
             if any(_is_youtube(v) for v in list_vids):
                 return JsonResponse({'error': YOUTUBE_BLOCKED_MSG}, status=503)
 

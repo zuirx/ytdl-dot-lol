@@ -161,9 +161,6 @@ DIR_DOWNLOAD = 'content-downloads'
 DIR_MIX = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
 
-# Temporary YouTube block toggle
-YOUTUBE_TEMPORARILY_BLOCKED = False
-
 # Daily YouTube link processing limit per IP
 YOUTUBE_DAILY_LIMIT = 5
 

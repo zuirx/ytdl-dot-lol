@@ -20,11 +20,9 @@ class RequestLogAdmin(admin.ModelAdmin):
         "ip_address",
         "timestamp",
         "path",
-        "country_name",
-        "city",
         "is_download",
     )
-    list_filter = ("is_download", "country_name", "method", "timestamp")
+    list_filter = ("is_download", "method", "timestamp")
     search_fields = ("ip_address", "path", "download_url", "user_agent")
     date_hierarchy = "timestamp"
 
@@ -61,21 +59,6 @@ class RequestLogAdmin(admin.ModelAdmin):
             RequestLog.objects.filter(is_download=True, timestamp__date=today).count()
         )
 
-        top_countries = (
-            RequestLog.objects.exclude(country_name="")
-            .values("country_name", "country_code")
-            .annotate(count=Count("id"))
-            .order_by("-count")[:10]
-        )
-
-        daily_counts = (
-            RequestLog.objects.filter(timestamp__gte=week_ago)
-            .annotate(date=functions.TruncDate("timestamp"))
-            .values("date")
-            .annotate(count=Count("id"))
-            .order_by("date")
-        )
-
         top_links = (
             RequestLog.objects.filter(is_download=True)
             .exclude(download_url="")
@@ -84,11 +67,12 @@ class RequestLogAdmin(admin.ModelAdmin):
             .order_by("-count")[:15]
         )
 
-        map_data = list(
-            RequestLog.objects.exclude(country_code="")
-            .values("country_code", "country_name")
+        daily_counts = (
+            RequestLog.objects.filter(timestamp__gte=week_ago)
+            .annotate(date=functions.TruncDate("timestamp"))
+            .values("date")
             .annotate(count=Count("id"))
-            .order_by("-count")
+            .order_by("date")
         )
 
         context = {
@@ -101,10 +85,8 @@ class RequestLogAdmin(admin.ModelAdmin):
             "unique_ips_today": unique_ips_today,
             "total_downloads": total_downloads,
             "downloads_today": downloads_today,
-            "top_countries": top_countries,
-            "daily_counts": daily_counts,
             "top_links": top_links,
-            "map_data": map_data,
+            "daily_counts": daily_counts,
         }
         return render(
             request, "admin/main/requestlog/dashboard.html", context

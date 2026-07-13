@@ -1,13 +1,12 @@
 import logging
 from .views import get_client_ip
 from .models import RequestLog
-from .tasks import geolocate_request_task
 
 logger = logging.getLogger(__name__)
 
 
 class AnalyticsMiddleware:
-    """Capture every request to the RequestLog table and offload GeoIP work to Celery."""
+    """Capture every request to the RequestLog table."""
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -41,7 +40,7 @@ class AnalyticsMiddleware:
             )[:2048]
 
         try:
-            log = RequestLog.objects.create(
+            RequestLog.objects.create(
                 ip_address=ip,
                 path=path[:2048],
                 method=request.method,
@@ -49,8 +48,6 @@ class AnalyticsMiddleware:
                 is_download=is_download,
                 download_url=download_url,
             )
-            # Offload GeoIP lookup to a worker so the request cycle stays fast
-            geolocate_request_task.delay(log.id, ip)
         except Exception:
             logger.exception("Analytics logging failed")
 

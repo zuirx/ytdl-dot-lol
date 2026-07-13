@@ -13,11 +13,6 @@ class RequestLog(models.Model):
     path = models.CharField(max_length=2048)
     method = models.CharField(max_length=10, default="GET")
     user_agent = models.TextField(blank=True, default="")
-    country_code = models.CharField(max_length=2, blank=True, db_index=True)
-    country_name = models.CharField(max_length=100, blank=True)
-    city = models.CharField(max_length=100, blank=True)
-    latitude = models.FloatField(null=True, blank=True)
-    longitude = models.FloatField(null=True, blank=True)
     is_download = models.BooleanField(default=False, db_index=True)
     download_url = models.URLField(blank=True)
 

@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'main',
 ]
 
-GEOIP_PATH = BASE_DIR / 'GeoLite2-City.mmdb'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -148,10 +147,6 @@ CELERY_BEAT_SCHEDULE = {
     'cleanup-large-files-every-15-mins': {
         'task': 'main.tasks.cleanup_large_files_task',
         'schedule': 900.0,
-    },
-    'aggregate-analytics-daily': {
-        'task': 'main.tasks.aggregate_daily_summary_task',
-        'schedule': 3600.0,
     },
 }
 

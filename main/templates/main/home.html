@@ -47,7 +47,17 @@
         {% for m in messages %}
         <div class="message_sv {{ m.tags }}">
             <span>{{ m }}</span>
-            <button type="button" class="message-close" onclick="this.parentElement.remove()">×</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                {% if 'error' in m.tags %}
+                <button type="button" class="btn-report" onclick="reportError(this, '{{ m|escapejs }}')" title="Report this error">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;">
+                        <path fill="currentColor" d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                    </svg>
+                    Report
+                </button>
+                {% endif %}
+                <button type="button" class="message-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
         </div>
         {% endfor %}
         {% endif %}
@@ -657,6 +667,38 @@
                 form.addEventListener('submit', handleAsyncDownload);
             });
         });
+    </script>
+
+    <!-- error report button logic -->
+    <script>
+        async function reportError(btn, errorMsg) {
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const res = await fetch('{% url "report_error_ajax" %}', {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        url: window.location.href,
+                        error: errorMsg
+                    }),
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                });
+                const data = await res.json();
+                if (data.reported) {
+                    btn.textContent = 'Reported ✓';
+                    btn.style.opacity = '0.7';
+                } else {
+                    btn.textContent = data.reason === 'duplicate' ? 'Already reported' : 'Error';
+                    btn.style.opacity = '0.7';
+                }
+            } catch (err) {
+                btn.textContent = 'Failed';
+                btn.disabled = false;
+            }
+        }
     </script>
 
 </body>

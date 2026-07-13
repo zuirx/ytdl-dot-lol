@@ -34,20 +34,37 @@ def get_client_ip(request):
 
 def report_error(request, error_msg):
     if 'No link provided' in error_msg: return
-
     messages.error(request, error_msg)
+
+
+def report_error_ajax(request):
+    """User-driven error reporting: saves URL and traceback to ErrorReport."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+    url = request.POST.get('url', '')
+    error_msg = request.POST.get('error', '')
+    if not error_msg:
+        return JsonResponse({'error': 'No error provided'}, status=400)
+
     ip = get_client_ip(request)
-    
-    # Check for duplicates in the last 5 minutes to prevent spam attacks
+
+    # Check for duplicates in the last 5 minutes to prevent spam
     five_min_ago = timezone.now() - timedelta(minutes=5)
     exists = ErrorReport.objects.filter(
-        pipv4=ip, 
-        error=str(error_msg), 
+        pipv4=ip,
+        error=str(error_msg),
         date__gte=five_min_ago
     ).exists()
-    
+
     if not exists:
-        ErrorReport.objects.create(pipv4=ip, date=timezone.now(), error=str(error_msg))
+        ErrorReport.objects.create(
+            pipv4=ip,
+            date=timezone.now(),
+            error=f"URL: {url}\nError: {error_msg}"
+        )
+        return JsonResponse({'status': 'ok', 'reported': True})
+    return JsonResponse({'status': 'ok', 'reported': False, 'reason': 'duplicate'})
 
 DIR_DOWNLOAD = settings.DIR_DOWNLOAD
 DIR_MIX      = settings.DIR_MIX

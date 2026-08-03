@@ -205,3 +205,7 @@ celerybeat-schedule.bak
 dump.rdb
 cookie.txt
 *.mmdb
+other
+
+.claude
+.aider.tags.cache.v4

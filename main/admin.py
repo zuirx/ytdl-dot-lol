@@ -68,7 +68,7 @@ class RequestLogAdmin(admin.ModelAdmin):
         )
 
         daily_counts = (
-            RequestLog.objects.filter(timestamp__gte=week_ago)
+            RequestLog.objects.filter(timestamp__gte=week_ago,is_download=True)
             .annotate(date=functions.TruncDate("timestamp"))
             .values("date")
             .annotate(count=Count("id"))

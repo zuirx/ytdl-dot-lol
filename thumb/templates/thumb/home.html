@@ -1,0 +1,201 @@
+{% load static %}
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Thumb | YTDL.LOL - Video Thumbnail & Info Extractor</title>
+    <meta name="description" content="Extract thumbnails, metadata, and download options from any video using yt-dlp.">
+
+    {% include 'main/ads_head.html' %}
+    <link rel="shortcut icon" href="{% static 'ytdl/favicon.ico' %}" type="image/x-icon">
+    <link rel="stylesheet" href="{% static 'ytdl/style.css' %}">
+</head>
+
+<body class="{% if request.COOKIES.theme == '1' %}light-theme{% endif %}">
+
+    <header>
+        <img src="{% static 'ytdl/logo.png' %}" alt="ytdl.lol" id="logo">
+        <div class="subtitle">thumbnail & metadata extractor, just a <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> frontend</div>
+        <div class="subtitle"><a href="{% url 'thumb:home' %}">download videos and music here</a></div>
+    </header>
+
+    <main class="main-card">
+        {% if messages %}
+        {% for m in messages %}
+        <div class="message_sv {{ m.tags }}">
+            <span>{{ m }}</span>
+            <button type="button" class="message-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'thumb:home' %}" id="thumb-form">
+            {% csrf_token %}
+            <div class="input-row">
+                <input type="text" name="video_url" id="video_url" placeholder="Paste video URL here" value="{{ url }}" autocomplete="off">
+                <button type="button" class="btn-ghost" onclick="pasteFromClipboard()">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path
+                            d="M19,2H14V4H19V18H5V4H10V2H5A2,2 0 0,0 3,4V18A2,2 0 0,0 5,20H19A2,2 0 0,0 21,18V4A2,2 0 0,0 19,2M12,2A2,2 0 0,1 14,4A2,2 0 0,1 12,6A2,2 0 0,1 10,4A2,2 0 0,1 12,2M15,11V13H9V11H15M15,7V9H9V7H15M15,15V17H9V15H15Z" />
+                    </svg>
+                    Paste
+                </button>
+            </div>
+
+            <div class="actions-row" style="justify-content: center;">
+                <button type="submit" class="btn-primary">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+                    </svg>
+                    Get Video Info
+                </button>
+            </div>
+        </form>
+
+        <p class="button-agree">by clicking the button, <br> you agree with the <a href="{% url 'terms-privacy' %}">Terms of Service & Privacy Policy</a>.</p>
+
+        {% if video_info %}
+        <div class="results-container">
+            <div class="video-header">
+                <div class="thumbnail-section">
+                    {% if video_info.thumbnail %}
+                    <img src="{{ video_info.thumbnail }}" alt="Video Thumbnail" class="video-thumbnail">
+                    <div class="thumbnail-actions">
+                        <a href="{% url 'thumb:download_thumbnail' %}?url={{ video_info.webpage_url|urlencode }}"
+                           class="btn-primary" target="_blank" style="padding: 8px 15px; font-size: 0.85rem;">
+                            <svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                                <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+                            </svg>
+                            Download HD
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="video-details">
+                    <h2 class="video-title">{{ video_info.title }}</h2>
+
+                    <div class="video-meta">
+                        {% if video_info.duration %}
+                        <span class="meta-item">⏱️ {{ video_info.duration }}s</span>
+                        {% endif %}
+                        {% if video_info.view_count %}
+                        <span class="meta-item">👁️ {{ video_info.view_count }} views</span>
+                        {% endif %}
+                        {% if video_info.like_count %}
+                        <span class="meta-item">👍 {{ video_info.like_count }}</span>
+                        {% endif %}
+                        {% if video_info.upload_date %}
+                        <span class="meta-item">📅 {{ video_info.upload_date }}</span>
+                        {% endif %}
+                        {% if video_info.age_limit %}
+                        <span class="meta-item" style="color: var(--error);">⚠️ {{ video_info.age_limit }}+</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <label>Uploader</label>
+                            <span>{{ video_info.uploader|default:"N/A" }}</span>
+                        </div>
+                        <div class="info-card">
+                            <label>Channel</label>
+                            <span>{{ video_info.channel|default:"N/A" }}</span>
+                        </div>
+                        <div class="info-card">
+                            <label>Platform</label>
+                            <span>{{ video_info.extractor_key|default:"N/A" }}</span>
+                        </div>
+                        <div class="info-card">
+                            <label>Video ID</label>
+                            <span>{{ video_info.id|default:"N/A" }}</span>
+                        </div>
+                    </div>
+
+                    {% if video_info.description %}
+                    <div class="video-description">
+                        <strong>Description:</strong><br>
+                        {{ video_info.description|truncatechars:500 }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if video_info.tags %}
+            <h2>Tags</h2>
+            <div class="tags-container">
+                {% for tag in video_info.tags %}
+                <span class="badge">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if video_info.categories %}
+            <h2>Categories</h2>
+            <div class="tags-container">
+                {% for category in video_info.categories %}
+                <span class="badge">{{ category }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if video_info.subtitles %}
+            <h2>Subtitles ({{ video_info.subtitles|length }})</h2>
+            <div class="scroll-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Language</th>
+                            <th>Type</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in video_info.subtitles %}
+                        <tr>
+                            <td><span class="badge">{{ sub.language }}</span></td>
+                            <td>{{ sub.type }}</td>
+                            <td>
+                                <a href="{% url 'thumb:get_subtitles' %}?url={{ video_info.webpage_url|urlencode }}&lang={{ sub.language }}"
+                                   class="btn-primary"
+                                   style="padding: 5px 10px; font-size: 0.75rem;" target="_blank">
+                                    Download .srt
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        <button type="button" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
+            title="Back to top">↑</button>
+        {% endif %}
+    </main>
+
+    <footer>
+        {% include 'main/donations.html' %}
+        {% include 'main/footer.html' %}
+    </footer>
+
+    <!-- paste button js -->
+    <script>
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById("video_url").value = text;
+            } catch (err) {
+                console.error("Paste failed", err);
+            }
+        }
+    </script>
+
+</body>
+
+</html>

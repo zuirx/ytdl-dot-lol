@@ -210,3 +210,9 @@ other
 .claude
 .aider.tags.cache.v4
 celerybeat-schedule.db
+thumb/templates/thumb/ads_body.html
+thumb/templates/thumb/ads_side2.html
+thumb/templates/thumb/ads_side1.html
+main/templates/main/ads_side2.html
+main/templates/main/ads_side1.html
+thumb/templates/thumb/ads_head.html

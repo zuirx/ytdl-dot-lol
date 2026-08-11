@@ -209,3 +209,4 @@ other
 
 .claude
 .aider.tags.cache.v4
+celerybeat-schedule.db

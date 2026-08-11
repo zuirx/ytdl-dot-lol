@@ -179,8 +179,14 @@
         {% endif %}
     </main>
 
+    {% safe_include 'main/ads_side1.html' %}
+    {% safe_include 'main/ads_side2.html' %}
+
     <footer>
         {% include 'main/donations.html' %}
+        <br>
+        {% safe_include 'main/ads_body.html' %}
+        <br>
         {% include 'main/footer.html' %}
     </footer>
 

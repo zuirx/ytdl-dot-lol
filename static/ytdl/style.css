@@ -807,6 +807,32 @@ input:checked+.slider:before {
 }
 
 /* Legal Pages */
+
+/* Ads sidebars */
+/* Position the two side ad includes on left and right edges of the screen.
+   The first include after the <main> element is placed on the left, the second on the right.
+   They are fixed positioned to keep the central content layout untouched. */
+@media (min-width: 1024px) {
+  /* Left side ad */
+  main + * {
+    position: fixed;
+    top: 120px; /* adjust based on header height */
+    left: 0;
+    width: 300px;
+    max-width: 30vw;
+    z-index: 10;
+  }
+  /* Right side ad */
+  main + * + * {
+    position: fixed;
+    top: 120px;
+    right: 0;
+    width: 300px;
+    max-width: 30vw;
+    z-index: 10;
+  }
+}
+
 .legal-container {
     width: 100%;
     max-width: 800px;

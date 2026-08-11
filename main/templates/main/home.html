@@ -371,9 +371,8 @@
         {% endif %}
     </main>
 
-    {% safe_include 'main/ads_side1.html' %}
-    {% safe_include 'main/ads_side2.html' %}
-
+    <div class="ad-sidebar ad-sidebar-left">{% safe_include 'main/ads_side1.html' %}</div>
+    <div class="ad-sidebar ad-sidebar-right">{% safe_include 'main/ads_side2.html' %}</div>
 
     <footer>
         {% safe_include 'main/donations.html' %}

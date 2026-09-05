@@ -158,7 +158,7 @@ DIR_MIX = 'content-mix'
 DIR_PLAYLIST = 'content-playlist'
 
 # Daily YouTube link processing limit per IP
-YOUTUBE_DAILY_LIMIT = 5
+YOUTUBE_DAILY_LIMIT = 15
 
 # Node.js path for yt-dlp JS runtime (used by n-sig challenges on YouTube)
 NODEJS_WIN = r'C:\Program Files\nodejs\node.exe'

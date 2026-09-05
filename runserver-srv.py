@@ -54,4 +54,5 @@ if __name__ == "__main__":
         http="httptools",
         proxy_headers=True,
         forwarded_allow_ips="*",
+        limit_max_requests=1000,
     )

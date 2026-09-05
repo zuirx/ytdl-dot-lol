@@ -47,3 +47,14 @@ class AnalyticsDashboard(models.Model):
         managed = False
         default_permissions = ()
         verbose_name_plural = "Analytics Dashboard"
+
+
+class SiteSetting(models.Model):
+    warning_text = models.TextField(blank=True, default="", help_text="Text to display as a warning on the home page.")
+
+    class Meta:
+        verbose_name = "Site Setting"
+        verbose_name_plural = "Site Settings"
+
+    def __str__(self):
+        return "Global Site Settings"

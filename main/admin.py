@@ -4,7 +4,7 @@ from django.shortcuts import render
 from django.db.models import Count, functions
 from django.utils import timezone
 from datetime import timedelta
-from .models import RequestLog, ErrorReport, DailySummary, AnalyticsDashboard
+from .models import RequestLog, ErrorReport, DailySummary, AnalyticsDashboard, SiteSetting
 
 
 @admin.register(ErrorReport)
@@ -130,3 +130,11 @@ class AnalyticsDashboardAdmin(admin.ModelAdmin):
 
 
 admin.site.register(AnalyticsDashboard, AnalyticsDashboardAdmin)
+
+@admin.register(SiteSetting)
+class SiteSettingAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "warning_text")
+
+    def has_add_permission(self, request):
+        # Allow only one instance of SiteSetting
+        return not SiteSetting.objects.exists()

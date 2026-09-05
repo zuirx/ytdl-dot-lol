@@ -20,7 +20,7 @@ from .tasks import (
 
 from django.core.cache import cache
 from django.conf import settings
-from .models import ErrorReport
+from .models import ErrorReport, SiteSetting
 
 logger = logging.getLogger(__name__)
 
@@ -355,7 +355,8 @@ def home_yt(request, subpath=''):
     except:
         ytdlpver = 'unknown'
 
-    warning = ""
+    site_setting = SiteSetting.objects.first()
+    warning = site_setting.warning_text if site_setting and site_setting.warning_text else ""
 
     return render(request, 'main/home.html', {
         'theme':     request.COOKIES.get('theme'),

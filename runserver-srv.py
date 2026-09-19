@@ -42,16 +42,25 @@ if __name__ == "__main__":
 
     logging.config.dictConfig(log_config)
 
-    uvicorn.run(
-        "ytdl.asgi:application",
-        host="0.0.0.0",
-        port=8005,
-        workers=workers,
-        reload=False,
-        log_level="info",
-        log_config=log_config,
-        loop=loop_type,
-        http="httptools",
-        proxy_headers=True,
-        forwarded_allow_ips="*",
-    )
+    while True:
+        try:
+            uvicorn.run(
+                "ytdl.asgi:application",
+                host="0.0.0.0",
+                port=8005,
+                workers=workers,
+                reload=False,
+                log_level="info",
+                log_config=log_config,
+                loop=loop_type,
+                http="httptools",
+                proxy_headers=True,
+                forwarded_allow_ips="*",
+                limit_max_requests=1000,
+            )
+            print("\n--- Uvicorn hit max requests and exited. Restarting in 2 seconds (Press Ctrl+C again to stop completely) ---\n")
+            import time
+            time.sleep(2)
+        except KeyboardInterrupt:
+            print("\n--- Server manually stopped ---\n")
+            break

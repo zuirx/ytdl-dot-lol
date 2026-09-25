@@ -51,6 +51,7 @@ class AnalyticsDashboard(models.Model):
 
 class SiteSetting(models.Model):
     warning_text = models.TextField(blank=True, default="", help_text="Text to display as a warning on the home page.")
+    youtube_limit_exception_ips = models.TextField(blank=True, default="", help_text="Comma or newline-separated IP addresses that are exempt from the YouTube daily download limit.")
 
     class Meta:
         verbose_name = "Site Setting"

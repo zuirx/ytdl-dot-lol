@@ -84,11 +84,22 @@ def _check_youtube_block(request, url):
         return redirect('home_yt')
     return None
 
+def _is_ip_exempt(ip):
+    site_setting = SiteSetting.objects.first()
+    if site_setting and site_setting.youtube_limit_exception_ips:
+        exceptions = [x.strip() for x in site_setting.youtube_limit_exception_ips.replace(',', '\n').split() if x.strip()]
+        if ip in exceptions:
+            return True
+    return False
+
 def _check_youtube_daily_limit(request, url):
     """Return a redirect response if the IP has exceeded the daily YouTube limit, else None."""
     if not url or not _is_youtube(url):
         return None
     ip = get_client_ip(request)
+    if _is_ip_exempt(ip):
+        return None
+    
     cache_key = f"yt_daily_{ip}"
     count = cache.get(cache_key, 0)
     limit = getattr(settings, 'YOUTUBE_DAILY_LIMIT', 5)
@@ -103,6 +114,9 @@ def _check_youtube_daily_limit_json(request, url):
     if not url or not _is_youtube(url):
         return None
     ip = get_client_ip(request)
+    if _is_ip_exempt(ip):
+        return None
+    
     cache_key = f"yt_daily_{ip}"
     count = cache.get(cache_key, 0)
     limit = getattr(settings, 'YOUTUBE_DAILY_LIMIT', 5)
@@ -687,7 +701,7 @@ def initiate_download(request):
     dl_count = cache.get(cache_key, 0)
     MAX_DOWNLOADS_PER_HOUR = 5 # Keep local if preferred or move to settings later
 
-    if dl_count >= MAX_DOWNLOADS_PER_HOUR:
+    if dl_count >= MAX_DOWNLOADS_PER_HOUR and not _is_ip_exempt(ip):
         return JsonResponse({'error': f'Rate limit exceeded. Maximum {MAX_DOWNLOADS_PER_HOUR} downloads per hour allowed.'}, status=429)
 
     url = request.POST.get('yt_link')

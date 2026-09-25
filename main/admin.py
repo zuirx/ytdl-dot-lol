@@ -133,7 +133,7 @@ admin.site.register(AnalyticsDashboard, AnalyticsDashboardAdmin)
 
 @admin.register(SiteSetting)
 class SiteSettingAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "warning_text")
+    list_display = ("__str__", "warning_text", "youtube_limit_exception_ips")
 
     def has_add_permission(self, request):
         # Allow only one instance of SiteSetting

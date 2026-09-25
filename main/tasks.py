@@ -101,15 +101,14 @@ def _extract_with_cookie_fallback(url, opts, download=False):
 # Constants are now in settings.py
 
 @shared_task
-def cleanup_large_files_task():
+def cleanup_old_files_task():
     """
-    Routine to remove very large files from content directories.
-    - Files > 500MB are removed if older than 30 minutes.
+    Routine to remove old files from content directories.
+    - Files are removed if older than 10 minutes.
     - Total storage limit of 100GB is enforced by removing oldest files.
     """
     dirs_to_clean = [settings.DIR_DOWNLOAD, settings.DIR_MIX, settings.DIR_PLAYLIST]
-    LARGE_FILE_THRESHOLD = 500 * 1024 * 1024  # 500 MB
-    TIME_THRESHOLD = 30 * 60  # 30 minutes
+    TIME_THRESHOLD = 10 * 60  # 10 minutes
     TOTAL_STORAGE_LIMIT = 100 * 1024 * 1024 * 1024  # 100 GB
     
     now = time.time()
@@ -127,10 +126,10 @@ def cleanup_large_files_task():
                     size = stat.st_size
                     mtime = stat.st_mtime
                     
-                    # Rule 1: Remove very large files older than 30 mins
-                    if size > LARGE_FILE_THRESHOLD and (now - mtime) > TIME_THRESHOLD:
+                    # Rule 1: Remove files older than 10 mins
+                    if (now - mtime) > TIME_THRESHOLD:
                         os.remove(path)
-                        logger.warning(f"Cleanup: Removed large file {path} (>500MB and >30m old)")
+                        logger.warning(f"Cleanup: Removed file {path} (>10m old)")
                         continue
                     
                     all_files.append((path, mtime, size))

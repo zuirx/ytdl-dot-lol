@@ -116,9 +116,9 @@
                 <input type="hidden" name="theme_val" id="theme_val"
                     value="{% if request.COOKIES.theme == '1' %}1{% else %}0{% endif %}">
                 <input type="hidden" name="video_quality" id="video_quality_val"
-                    value="{{ request.COOKIES.video_quality|default:'best' }}">
+                    value="{{ request.COOKIES.video_quality|default:'medium }}">
                 <input type="hidden" name="audio_quality" id="audio_quality_val"
-                    value="{{ request.COOKIES.audio_quality|default:'best' }}">
+                    value="{{ request.COOKIES.audio_quality|default:'medium' }}">
 
                 <div class="settings-row">
                     <div class="settings-group">
@@ -494,7 +494,7 @@
                 const activeBtn = document.querySelector(`.quality-btn[data-quality="${cookies.video_quality}"]`);
                 if (activeBtn) activeBtn.classList.add('active');
             } else {
-                document.querySelector('.quality-btn[data-quality="best"]')?.classList.add('active');
+                document.querySelector('.quality-btn[data-quality="medium"]')?.classList.add('active');
             }
 
             if (cookies.theme === '1') {

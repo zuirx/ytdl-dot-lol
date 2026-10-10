@@ -416,7 +416,19 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
         })
 
     try:
-        info = _extract_with_cookie_fallback(url, ydl_opts, download=True)
+        try:
+            info = _extract_with_cookie_fallback(url, ydl_opts, download=True)
+        except yt_dlp.utils.DownloadError as e:
+            if 'Conversion failed!' in str(e) or 'Preprocessing:' in str(e):
+                logger.warning("Thumbnail conversion failed. Retrying without thumbnails...")
+                ydl_opts['writethumbnail'] = False
+                ydl_opts['postprocessors'] = [
+                    pp for pp in ydl_opts['postprocessors']
+                    if pp['key'] not in ('FFmpegThumbnailsConvertor', 'EmbedThumbnail')
+                ]
+                info = _extract_with_cookie_fallback(url, ydl_opts, download=True)
+            else:
+                raise
 
         # When CLI handles the download, info is None.
         # Fallback to the outtmpl path and pre-fetched title.

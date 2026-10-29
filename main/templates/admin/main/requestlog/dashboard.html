@@ -1,116 +1,512 @@
 {% extends "admin/base_site.html" %}
 {% load i18n static %}
 
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label='main' %}">Main</a>
+  &rsaquo; {% translate 'Analytics Dashboard' %}
+</div>
+{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
   <style>
-    .analytics-cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-bottom: 20px;
+    .analytics-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding-bottom: 40px;
     }
-    .analytics-card {
-      background: #417690;
-      color: white;
-      padding: 15px;
+    .analytics-header {
+      margin-bottom: 25px;
     }
-    .analytics-card.alt {
-      background: #79aec8;
+    .analytics-header h1 {
+      margin: 0 0 6px 0;
+      font-size: 1.85em;
+      font-weight: 600;
+      color: var(--body-fg, #2d3748);
     }
-    .analytics-card h3 {
-      margin: 0 0 5px;
-      font-size: 1.1em;
-    }
-    .analytics-card .big {
-      font-size: 2em;
+    .analytics-subtitle {
       margin: 0;
+      color: var(--body-quiet-color, #718096);
+      font-size: 0.95em;
     }
-    .analytics-grid {
+
+    /* KPI Cards */
+    .kpi-cards {
       display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
       margin-bottom: 20px;
     }
-    @media (max-width: 900px) {
-      .analytics-grid {
+    .kpi-card {
+      border-radius: 8px;
+      padding: 18px 20px;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .kpi-card.card-ips {
+      background: linear-gradient(135deg, #2b6cb0 0%, #3182ce 100%);
+    }
+    .kpi-card.card-views {
+      background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+    }
+    .kpi-card.card-downloads {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    }
+    .kpi-card.card-requests {
+      background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+    }
+    .kpi-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 0.9em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.9;
+    }
+    .kpi-card .kpi-value {
+      font-size: 2.2em;
+      font-weight: 700;
+      margin: 0 0 12px 0;
+      line-height: 1.1;
+    }
+    .kpi-substats {
+      display: flex;
+      gap: 12px;
+      font-size: 0.82em;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 6px 10px;
+      border-radius: 6px;
+      justify-content: space-between;
+    }
+    .kpi-substats span strong {
+      font-weight: 700;
+    }
+
+    /* Key Insights Bar */
+    .insights-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .insight-pill {
+      background: var(--darkened-bg, #f8fafc);
+      color: var(--body-fg, #334155);
+      border: 1px solid var(--border-color, #e2e8f0);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.88em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .insight-pill strong {
+      color: #2b6cb0;
+    }
+
+    /* Modules and Grid */
+    .analytics-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .analytics-grid-main-side {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 960px) {
+      .analytics-grid-2,
+      .analytics-grid-main-side {
         grid-template-columns: 1fr;
       }
     }
-    .analytics-module {
-      background: #fff;
-      padding: 15px;
-      border: 1px solid #ccc;
+
+    .analytics-card-module {
+      background: var(--body-bg, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 8px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      margin-bottom: 24px;
+    }
+    .module-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border-color, #f1f5f9);
+      padding-bottom: 10px;
+    }
+    .module-header h2 {
+      margin: 0;
+      font-size: 1.15em;
+      font-weight: 600;
+      color: var(--body-fg, #1e293b);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .module-header .module-badge {
+      font-size: 0.75em;
+      background: #e2e8f0;
+      color: #475569;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    /* Tables */
+    .table-responsive {
+      overflow-x: auto;
+      width: 100%;
     }
     .analytics-table {
       width: 100%;
       border-collapse: collapse;
-    }
-    .analytics-table th,
-    .analytics-table td {
+      font-size: 0.88em;
       text-align: left;
-      padding: 6px;
-      border-bottom: 1px solid #eee;
     }
-    .analytics-table tr:hover {
-      background: #f9f9f9;
+    .analytics-table th {
+      background: var(--darkened-bg, #f8fafc);
+      color: var(--body-quiet-color, #64748b);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.78em;
+      letter-spacing: 0.04em;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border-color, #e2e8f0);
     }
+    .analytics-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color, #f1f5f9);
+      color: var(--body-fg, #334155);
+      vertical-align: middle;
+    }
+    .analytics-table tbody tr:hover {
+      background-color: var(--darkened-bg, rgba(0, 0, 0, 0.02));
+    }
+    .analytics-table td.numeric,
+    .analytics-table th.numeric {
+      text-align: right;
+    }
+
+    /* Badges & Progress bars */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.82em;
+      font-weight: 600;
+    }
+    .badge-primary {
+      background: #ebf8ff;
+      color: #2b6cb0;
+      border: 1px solid #bee3f8;
+    }
+    .badge-success {
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+    .badge-info {
+      background: #f0fdfa;
+      color: #0f766e;
+      border: 1px solid #99f6e4;
+    }
+    .badge-gray {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .progress-bar-container {
+      background: #e2e8f0;
+      border-radius: 999px;
+      height: 6px;
+      width: 80px;
+      display: inline-block;
+      overflow: hidden;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: #3182ce;
+    }
+
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-color, #f1f5f9);
+      font-size: 0.88em;
+    }
+    .breakdown-row:last-child {
+      border-bottom: none;
+    }
+    .breakdown-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+    }
+    .breakdown-stats {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .analytics-link {
+      color: #2b6cb0;
+      text-decoration: none;
       word-break: break-all;
-      font-size: 0.85em;
-      color: #417690;
+    }
+    .analytics-link:hover {
+      text-decoration: underline;
+    }
+    .path-code {
+      font-family: monospace;
+      background: var(--darkened-bg, #f1f5f9);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.95em;
     }
   </style>
 {% endblock %}
 
 {% block content %}
-  <div id="content-main">
+<div id="content-main" class="analytics-container">
+  
+  <div class="analytics-header">
     <h1>Analytics Dashboard</h1>
+    <p class="analytics-subtitle">Unique visitor metrics, monthly trends, and user page views analysis.</p>
+  </div>
 
-    <div class="analytics-cards">
-      <div class="analytics-card">
-        <h3>Total Requests</h3>
-        <p class="big">{{ total_requests }}</p>
-        <small>Today: {{ requests_today }}</small>
+  <!-- KPI Cards Row -->
+  <div class="kpi-cards">
+    <!-- Unique IPs -->
+    <div class="kpi-card card-ips">
+      <div>
+        <h3>Unique Visitors (IPs)</h3>
+        <div class="kpi-value">{{ unique_ips_total }}</div>
       </div>
-      <div class="analytics-card alt">
-        <h3>Unique IPs</h3>
-        <p class="big">{{ unique_ips_total }}</p>
-        <small>Today: {{ unique_ips_today }}</small>
-      </div>
-      <div class="analytics-card">
-        <h3>Downloads</h3>
-        <p class="big">{{ total_downloads }}</p>
-        <small>Today: {{ downloads_today }}</small>
-      </div>
-      <div class="analytics-card alt">
-        <h3>This Week</h3>
-        <p class="big">{{ requests_week }}</p>
-        <small>requests</small>
+      <div class="kpi-substats">
+        <span>Today: <strong>{{ unique_ips_today }}</strong></span>
+        <span>Week: <strong>{{ unique_ips_week }}</strong></span>
+        <span>Month: <strong>{{ unique_ips_month }}</strong></span>
       </div>
     </div>
 
-    <div class="analytics-grid">
-      <div class="analytics-module">
-        <h2>Downloads Last 7 Days</h2>
-        <canvas id="requestsChart" height="120"></canvas>
+    <!-- Page Views -->
+    <div class="kpi-card card-views">
+      <div>
+        <h3>Page Views</h3>
+        <div class="kpi-value">{{ total_views }}</div>
       </div>
-      <div class="analytics-module">
-        <h2>Top Downloaded Links</h2>
+      <div class="kpi-substats">
+        <span>Today: <strong>{{ views_today }}</strong></span>
+        <span>Week: <strong>{{ views_week }}</strong></span>
+        <span>Month: <strong>{{ views_month }}</strong></span>
+      </div>
+    </div>
+
+    <!-- Downloads -->
+    <div class="kpi-card card-downloads">
+      <div>
+        <h3>Downloads</h3>
+        <div class="kpi-value">{{ total_downloads }}</div>
+      </div>
+      <div class="kpi-substats">
+        <span>Today: <strong>{{ downloads_today }}</strong></span>
+        <span>Week: <strong>{{ downloads_week }}</strong></span>
+        <span>Month: <strong>{{ downloads_month }}</strong></span>
+      </div>
+    </div>
+
+    <!-- Total Requests -->
+    <div class="kpi-card card-requests">
+      <div>
+        <h3>Total Requests</h3>
+        <div class="kpi-value">{{ total_requests }}</div>
+      </div>
+      <div class="kpi-substats">
+        <span>Today: <strong>{{ requests_today }}</strong></span>
+        <span>Week: <strong>{{ requests_week }}</strong></span>
+        <span>Month: <strong>{{ requests_month }}</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Engagement & Conversion Insights -->
+  <div class="insights-bar">
+    <div class="insight-pill">
+      <span>Download Conversion Rate:</span>
+      <strong>{{ conversion_rate }}%</strong>
+    </div>
+    <div class="insight-pill">
+      <span>Avg Page Views / Visitor:</span>
+      <strong>{{ avg_views_per_ip }}</strong>
+    </div>
+    <div class="insight-pill">
+      <span>Avg Downloads / Visitor:</span>
+      <strong>{{ avg_downloads_per_ip }}</strong>
+    </div>
+  </div>
+
+  <!-- Interactive Charts Row -->
+  <div class="analytics-grid-2">
+    <!-- Daily Traffic Trends -->
+    <div class="analytics-card-module">
+      <div class="module-header">
+        <h2>Daily Traffic Trends</h2>
+        <span class="module-badge">Views vs Downloads vs IPs</span>
+      </div>
+      <canvas id="dailyTrafficChart" height="130"></canvas>
+    </div>
+
+    <!-- Monthly Unique IPs Trend -->
+    <div class="analytics-card-module">
+      <div class="module-header">
+        <h2>Monthly Unique Visitors (IPs)</h2>
+        <span class="module-badge">Month-by-Month</span>
+      </div>
+      <canvas id="monthlyTrendChart" height="130"></canvas>
+    </div>
+  </div>
+
+  <!-- Monthly Unique IPs & Performance Table ("Unique IP in its months") -->
+  <div class="analytics-card-module">
+    <div class="module-header">
+      <h2>Unique IPs & Monthly Performance</h2>
+      <span class="module-badge">Monthly Historical Breakdown</span>
+    </div>
+    <div class="table-responsive">
+      <table class="analytics-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th class="numeric">Unique IPs</th>
+            <th class="numeric">Page Views</th>
+            <th class="numeric">Downloads</th>
+            <th class="numeric">Total Requests</th>
+            <th class="numeric">Views / IP</th>
+            <th class="numeric">Downloads / IP</th>
+            <th class="numeric">Conversion</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in monthly_stats %}
+          <tr>
+            <td><strong>{{ m.month|date:"F Y" }}</strong></td>
+            <td class="numeric"><span class="badge badge-primary">{{ m.unique_ips }}</span></td>
+            <td class="numeric">{{ m.page_views }}</td>
+            <td class="numeric">{{ m.downloads }}</td>
+            <td class="numeric">{{ m.total_requests }}</td>
+            <td class="numeric">{{ m.views_per_ip }}</td>
+            <td class="numeric">{{ m.downloads_per_ip }}</td>
+            <td class="numeric"><span class="badge badge-success">{{ m.conversion_rate }}%</span></td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" style="text-align: center; color: #a0aec0; padding: 20px;">
+              No monthly analytics data available yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Users Views by Page & Top Downloaded Links -->
+  <div class="analytics-grid-main-side">
+    <!-- Top Visited Pages (Users Views Statistics) -->
+    <div class="analytics-card-module">
+      <div class="module-header">
+        <h2>Top Visited Pages (User Views)</h2>
+        <span class="module-badge">Most viewed paths</span>
+      </div>
+      <div class="table-responsive">
         <table class="analytics-table">
           <thead>
-            <tr><th>Link</th><th>Count</th></tr>
+            <tr>
+              <th>Page Path</th>
+              <th class="numeric">Views</th>
+              <th class="numeric">Unique IPs</th>
+              <th class="numeric">Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for page in top_pages %}
+            <tr>
+              <td>
+                <span class="path-code">{{ page.path }}</span>
+              </td>
+              <td class="numeric"><strong>{{ page.views }}</strong></td>
+              <td class="numeric">{{ page.unique_ips }}</td>
+              <td class="numeric">
+                {{ page.percentage }}%
+                <span class="progress-bar-container">
+                  <span class="progress-bar-fill" style="width: {{ page.percentage }}%;"></span>
+                </span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" style="text-align: center; color: #a0aec0; padding: 18px;">
+                No page view logs recorded yet.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Top Downloaded Links -->
+    <div class="analytics-card-module">
+      <div class="module-header">
+        <h2>Top Downloaded Links</h2>
+        <span class="module-badge">Most downloaded media</span>
+      </div>
+      <div class="table-responsive">
+        <table class="analytics-table">
+          <thead>
+            <tr>
+              <th>Media Link</th>
+              <th class="numeric">Downloads</th>
+            </tr>
           </thead>
           <tbody>
             {% for link in top_links %}
             <tr>
               <td>
-                <a href="{{ link.download_url }}" target="_blank" class="analytics-link">{{ link.download_url|truncatechars:60 }}</a>
+                <a href="{{ link.download_url }}" target="_blank" rel="noopener noreferrer" class="analytics-link">
+                  {{ link.download_url|truncatechars:45 }}
+                </a>
               </td>
-              <td>{{ link.count }}</td>
+              <td class="numeric"><strong>{{ link.count }}</strong></td>
             </tr>
             {% empty %}
-            <tr><td colspan="2">No download data yet.</td></tr>
+            <tr>
+              <td colspan="2" style="text-align: center; color: #a0aec0; padding: 18px;">
+                No download links recorded yet.
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
@@ -118,30 +514,254 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script type="text/javascript">
-    (function() {
-      // Line chart – requests over the last 7 days
-      const reqCtx = document.getElementById('requestsChart').getContext('2d');
-      new Chart(reqCtx, {
+  <!-- Visitor Demographics & Most Active Visitors -->
+  <div class="analytics-grid-main-side">
+    <!-- Most Active Visitors (Top IPs) -->
+    <div class="analytics-card-module">
+      <div class="module-header">
+        <h2>Top Active Visitors</h2>
+        <span class="module-badge">Most active client IPs</span>
+      </div>
+      <div class="table-responsive">
+        <table class="analytics-table">
+          <thead>
+            <tr>
+              <th>IP Address</th>
+              <th class="numeric">Page Views</th>
+              <th class="numeric">Downloads</th>
+              <th class="numeric">Total</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in top_visitors %}
+            <tr>
+              <td><code>{{ v.ip_address }}</code></td>
+              <td class="numeric">{{ v.views }}</td>
+              <td class="numeric">{{ v.downloads }}</td>
+              <td class="numeric"><strong>{{ v.total_requests }}</strong></td>
+              <td><small>{{ v.last_seen|date:"Y-m-d H:i" }}</small></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="text-align: center; color: #a0aec0; padding: 18px;">
+                No visitor data recorded yet.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Browsing Environment (Devices & Browsers) -->
+    <div class="analytics-card-module">
+      <div class="module-header">
+        <h2>Devices & Browsers</h2>
+        <span class="module-badge">Client environment</span>
+      </div>
+
+      <div style="margin-bottom: 18px;">
+        <h4 style="margin: 0 0 10px 0; font-size: 0.9em; text-transform: uppercase; color: var(--body-quiet-color, #718096);">
+          Devices
+        </h4>
+        {% for dev in device_breakdown %}
+        <div class="breakdown-row">
+          <span class="breakdown-name">{{ dev.name }}</span>
+          <div class="breakdown-stats">
+            <span>{{ dev.count }}</span>
+            <span class="badge badge-gray">{{ dev.percentage }}%</span>
+            <span class="progress-bar-container">
+              <span class="progress-bar-fill" style="width: {{ dev.percentage }}%; background: #0f766e;"></span>
+            </span>
+          </div>
+        </div>
+        {% empty %}
+        <p style="color: #a0aec0; font-size: 0.85em;">No device data.</p>
+        {% endfor %}
+      </div>
+
+      <div>
+        <h4 style="margin: 0 0 10px 0; font-size: 0.9em; text-transform: uppercase; color: var(--body-quiet-color, #718096);">
+          Browsers
+        </h4>
+        {% for brw in browser_breakdown %}
+        <div class="breakdown-row">
+          <span class="breakdown-name">{{ brw.name }}</span>
+          <div class="breakdown-stats">
+            <span>{{ brw.count }}</span>
+            <span class="badge badge-gray">{{ brw.percentage }}%</span>
+            <span class="progress-bar-container">
+              <span class="progress-bar-fill" style="width: {{ brw.percentage }}%; background: #4f46e5;"></span>
+            </span>
+          </div>
+        </div>
+        {% empty %}
+        <p style="color: #a0aec0; font-size: 0.85em;">No browser data.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent User Views Feed -->
+  <div class="analytics-card-module">
+    <div class="module-header">
+      <h2>Recent Page Views (Live Feed)</h2>
+      <span class="module-badge">Latest 15 user visits</span>
+    </div>
+    <div class="table-responsive">
+      <table class="analytics-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>IP Address</th>
+            <th>Page Visited</th>
+            <th>Method</th>
+            <th>Device</th>
+            <th>Browser</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent_views %}
+          <tr>
+            <td><small>{{ r.timestamp|date:"Y-m-d H:i:s" }}</small></td>
+            <td><code>{{ r.ip_address }}</code></td>
+            <td><span class="path-code">{{ r.path }}</span></td>
+            <td><span class="badge badge-gray">{{ r.method }}</span></td>
+            <td>{{ r.device }}</td>
+            <td>{{ r.browser }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" style="text-align: center; color: #a0aec0; padding: 18px;">
+              No recent page views logged.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script type="text/javascript">
+  (function() {
+    // 1. Daily Traffic Trends Chart (Views vs Downloads vs IPs)
+    const dailyCtx = document.getElementById('dailyTrafficChart');
+    if (dailyCtx) {
+      const dailyLabels = {{ daily_chart_labels|safe }};
+      const dailyViews = {{ daily_chart_views|safe }};
+      const dailyDownloads = {{ daily_chart_downloads|safe }};
+      const dailyIps = {{ daily_chart_ips|safe }};
+
+      new Chart(dailyCtx.getContext('2d'), {
         type: 'line',
         data: {
-          labels: [{% for d in daily_counts %}'{{ d.date|date:"M d" }}'{% if not forloop.last %},{% endif %}{% endfor %}],
-          datasets: [{
-            label: 'Requests',
-            data: [{% for d in daily_counts %}{{ d.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
-            borderColor: '#417690',
-            tension: 0.3,
-            fill: true,
-            backgroundColor: 'rgba(65, 118, 144, 0.1)'
-          }]
+          labels: dailyLabels,
+          datasets: [
+            {
+              label: 'Page Views',
+              data: dailyViews,
+              borderColor: '#0f766e',
+              backgroundColor: 'rgba(15, 118, 110, 0.1)',
+              tension: 0.3,
+              fill: true
+            },
+            {
+              label: 'Downloads',
+              data: dailyDownloads,
+              borderColor: '#4f46e5',
+              backgroundColor: 'rgba(79, 70, 229, 0.1)',
+              tension: 0.3,
+              fill: true
+            },
+            {
+              label: 'Unique IPs',
+              data: dailyIps,
+              borderColor: '#2b6cb0',
+              backgroundColor: 'transparent',
+              borderDash: [4, 4],
+              tension: 0.3
+            }
+          ]
         },
         options: {
           responsive: true,
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true } }
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { boxWidth: 12, font: { size: 11 } }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
         }
       });
-    })();
-  </script>
+    }
+
+    // 2. Monthly Unique IPs Trend Chart
+    const monthlyCtx = document.getElementById('monthlyTrendChart');
+    if (monthlyCtx) {
+      const monthlyLabels = {{ monthly_chart_labels|safe }};
+      const monthlyIps = {{ monthly_chart_ips|safe }};
+      const monthlyViews = {{ monthly_chart_views|safe }};
+      const monthlyDownloads = {{ monthly_chart_downloads|safe }};
+
+      new Chart(monthlyCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: monthlyLabels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Unique IPs',
+              data: monthlyIps,
+              backgroundColor: '#3182ce',
+              borderRadius: 4
+            },
+            {
+              type: 'line',
+              label: 'Page Views',
+              data: monthlyViews,
+              borderColor: '#0f766e',
+              backgroundColor: 'rgba(15, 118, 110, 0.1)',
+              tension: 0.2
+            },
+            {
+              type: 'line',
+              label: 'Downloads',
+              data: monthlyDownloads,
+              borderColor: '#4f46e5',
+              backgroundColor: 'rgba(79, 70, 229, 0.1)',
+              tension: 0.2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { boxWidth: 12, font: { size: 11 } }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    }
+  })();
+</script>
 {% endblock %}

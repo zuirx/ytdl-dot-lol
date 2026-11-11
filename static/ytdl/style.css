@@ -62,17 +62,6 @@ h1 {
     padding-top: 50px;
 }
 
-.helpad {
-    color: #525861;
-    padding: 10px;
-    text-align: center;
-}
-
-.helpad p {
-    color: lightgray;
-    font-size: 8px;
-}
-
 .formlistyt button {
     display: flex;
     align-items: center;
@@ -325,50 +314,6 @@ footer a {
     text-decoration: none;
 }
 
-.donate-card {
-    display: inline-flex;
-    flex-direction: column;
-    gap: 10px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 10px 10px;
-    margin-bottom: 16px;
-    text-align: left;
-    min-width: 450px;
-    max-width: 450px;
-}
-
-.donate-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 2px;
-}
-
-.donate-title {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-main);
-}
-
-.donate-badge {
-    font-size: 0.7rem;
-    font-weight: 700;
-    background: var(--accent);
-    color: #000;
-    padding: 2px 8px;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-}
-
-.donate-hint {
-    text-align: center;
-    margin: 0 0 4px;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
-
 .button-agree {
     text-align: center;
     margin: 0 0 4px;
@@ -379,32 +324,6 @@ footer a {
 
 .button-agree a {
     color: var(--accent);
-}
-
-.donate-address {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    padding: 6px 10px;
-}
-
-.donate-coin {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--accent-text);
-    min-width: 34px;
-    letter-spacing: 0.05em;
-}
-
-.donate-addr {
-    flex: 1;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    word-break: break-all;
-    background: none;
-    font-family: "Courier New", monospace;
 }
 
 .btn-copy {
@@ -437,10 +356,6 @@ footer a {
         max-width: 270px;
     }
 
-    .donate-card {
-        min-width: 270px;
-        max-width: 270px;
-    }
 }
 
 .settings-panel {
@@ -807,31 +722,6 @@ input:checked+.slider:before {
 }
 
 /* Legal Pages */
-
-/* Ads sidebars */
-/* Position the two side ad includes on left and right edges of the screen.
-   The first include after the <main> element is placed on the left, the second on the right.
-   They are fixed positioned to keep the central content layout untouched. */
-@media (min-width: 1024px) {
-  /* Left side ad */
-  main + * {
-    position: fixed;
-    top: 120px; /* adjust based on header height */
-    left: 0;
-    width: 300px;
-    max-width: 30vw;
-    z-index: 10;
-  }
-  /* Right side ad */
-  main + * + * {
-    position: fixed;
-    top: 120px;
-    right: 0;
-    width: 300px;
-    max-width: 30vw;
-    z-index: 10;
-  }
-}
 
 .legal-container {
     width: 100%;

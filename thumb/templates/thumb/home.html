@@ -12,7 +12,6 @@
     <title>Thumb | YTDL.LOL - Video Thumbnail & Info Extractor</title>
     <meta name="description" content="Extract thumbnails, metadata, and download options from any video using yt-dlp.">
 
-    {% include 'main/ads_head.html' %}
     <link rel="shortcut icon" href="{% static 'ytdl/favicon.ico' %}" type="image/x-icon">
     <link rel="stylesheet" href="{% static 'ytdl/style.css' %}">
 </head>
@@ -180,14 +179,7 @@
         {% endif %}
     </main>
 
-    <div class="ad-sidebar ad-sidebar-left">{% safe_include 'main/ads_side1.html' %}</div>
-    <div class="ad-sidebar ad-sidebar-right">{% safe_include 'main/ads_side2.html' %}</div>
-
     <footer>
-        {% safe_include 'main/donations.html' %}
-        <br>
-        {% safe_include 'main/ads_body.html' %}
-        <br>
         {% safe_include 'main/footer.html' %}
     </footer>
 

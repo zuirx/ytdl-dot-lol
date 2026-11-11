@@ -29,7 +29,6 @@
     <meta property="twitter:title" content="YTDL.LOL | free online yt-dlp frontend downloader">
     <meta property="twitter:description" content="fast and powerful video downloads via yt-dlp.">
 
-    {% safe_include 'main/ads_head.html' %}
     <link rel="shortcut icon" href="{% static 'ytdl/favicon.ico' %}" type="image/x-icon">
     <link rel="stylesheet" href="{% static 'ytdl/style.css' %}">
 </head>
@@ -371,14 +370,7 @@
         {% endif %}
     </main>
 
-    <div class="ad-sidebar ad-sidebar-left">{% safe_include 'main/ads_side1.html' %}</div>
-    <div class="ad-sidebar ad-sidebar-right">{% safe_include 'main/ads_side2.html' %}</div>
-
     <footer>
-        {% safe_include 'main/donations.html' %}
-        <br>
-        {% safe_include 'main/ads_body.html' %}
-        <br>
         {% safe_include 'main/footer.html' %}
     </footer>
 

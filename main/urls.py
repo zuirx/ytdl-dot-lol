@@ -14,7 +14,6 @@ urlpatterns = [
     path('download_ready/<str:task_id>/', views.get_downloaded_file, name='download_ready'),
     path('cancel_task/<str:task_id>/', views.cancel_task, name='cancel_task'),
     path('report_error/', views.report_error_ajax, name='report_error_ajax'),
-    path('terms-privacy/', views.terms_privacy, name='terms-privacy'),
     path('<path:subpath>/', views.home_yt, name='home_yt'),
 ]
 

@@ -60,7 +60,7 @@ class AnalyticsDashboardTests(TestCase):
 
         log4 = RequestLog.objects.create(
             ip_address="192.168.1.3",
-            path="/terms-privacy/",
+            path="/health/",
             method="GET",
             is_download=False,
             user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0",
@@ -94,11 +94,11 @@ class AnalyticsDashboardTests(TestCase):
         self.assertEqual(context["total_views"], 3)
         self.assertEqual(context["total_downloads"], 1)
 
-        # Top pages should contain '/', '/thumb/', and '/terms-privacy/'
+        # Top pages should contain '/', '/thumb/', and '/health/'
         top_page_paths = [p["path"] for p in context["top_pages"]]
         self.assertIn("/", top_page_paths)
         self.assertIn("/thumb/", top_page_paths)
-        self.assertIn("/terms-privacy/", top_page_paths)
+        self.assertIn("/health/", top_page_paths)
 
         # Top visitors should list 192.168.1.1 with 2 total requests
         top_ips = [v["ip_address"] for v in context["top_visitors"]]

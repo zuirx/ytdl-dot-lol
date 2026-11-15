@@ -832,5 +832,3 @@ def health(request):
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
-def terms_privacy(request):
-    return render(request, 'main/terms-privacy.html')

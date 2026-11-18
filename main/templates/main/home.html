@@ -74,6 +74,74 @@
                 </button>
             </div>
 
+            <div class="geoblock-toggle-row">
+                <label class="geoblock-checkbox-label">
+                    <input type="checkbox" id="geoblock_toggle" name="enable_geoblock" onchange="toggleGeoblockOptions(this.checked)" {% if proxy or country and country != 'auto' %}checked{% endif %}>
+                    <span>This video may be blocked in my region</span>
+                </label>
+            </div>
+
+            <!-- Region & Proxy Bypass Bar (Only shown for geoblocked videos or when toggled) -->
+            <div class="proxy-bar-container" id="proxy-bar-container" style="{% if proxy or country and country != 'auto' %}display: flex;{% else %}display: none;{% endif %}">
+                <div class="proxy-row">
+                    <div class="proxy-field-group">
+                        <label for="country_select" class="proxy-label">
+                            <svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                                <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 19.93,11H17C16.89,9.45 16.5,7.96 15.86,6.6C17.38,7.37 18.59,8.58 19.93,11M12,4C13.25,5.77 14.15,8.27 14.37,11H9.63C9.85,8.27 10.75,5.77 12,4M4.07,13H7C7.11,14.55 7.5,16.04 8.14,17.4C6.62,16.63 5.41,15.42 4.07,13M4.07,11C5.41,8.58 6.62,7.37 8.14,6.6C7.5,7.96 7.11,9.45 7,11H4.07M12,20C10.75,18.23 9.85,15.73 9.63,13H14.37C14.15,15.73 13.25,18.23 12,20M15.86,17.4C16.5,16.04 16.89,14.55 17,13H19.93C18.59,15.42 17.38,16.63 15.86,17.4Z" />
+                            </svg>
+                            Region Bypass:
+                        </label>
+                        <select name="country" id="country_select" class="proxy-select" onchange="onRegionChange(this.value)">
+                            <option value="auto" {% if default_country == 'auto' or not default_country %}selected{% endif %}>Auto (Detect Country &amp; Try Working Proxies)</option>
+                            <option value="custom" {% if default_country == 'custom' %}selected{% endif %}>Custom Proxy</option>
+                            <optgroup label="Popular Regions">
+                                <option value="IN" {% if default_country == 'IN' %}selected{% endif %}>India (IN)</option>
+                                <option value="US" {% if default_country == 'US' %}selected{% endif %}>United States (US)</option>
+                                <option value="GB" {% if default_country == 'GB' %}selected{% endif %}>United Kingdom (GB)</option>
+                                <option value="CA" {% if default_country == 'CA' %}selected{% endif %}>Canada (CA)</option>
+                                <option value="DE" {% if default_country == 'DE' %}selected{% endif %}>Germany (DE)</option>
+                                <option value="JP" {% if default_country == 'JP' %}selected{% endif %}>Japan (JP)</option>
+                                <option value="FR" {% if default_country == 'FR' %}selected{% endif %}>France (FR)</option>
+                                <option value="BR" {% if default_country == 'BR' %}selected{% endif %}>Brazil (BR)</option>
+                                <option value="AU" {% if default_country == 'AU' %}selected{% endif %}>Australia (AU)</option>
+                                <option value="KR" {% if default_country == 'KR' %}selected{% endif %}>South Korea (KR)</option>
+                            </optgroup>
+                            <optgroup label="Other Regions">
+                                <option value="AR" {% if default_country == 'AR' %}selected{% endif %}>Argentina (AR)</option>
+                                <option value="CL" {% if default_country == 'CL' %}selected{% endif %}>Chile (CL)</option>
+                                <option value="CO" {% if default_country == 'CO' %}selected{% endif %}>Colombia (CO)</option>
+                                <option value="ES" {% if default_country == 'ES' %}selected{% endif %}>Spain (ES)</option>
+                                <option value="ID" {% if default_country == 'ID' %}selected{% endif %}>Indonesia (ID)</option>
+                                <option value="IT" {% if default_country == 'IT' %}selected{% endif %}>Italy (IT)</option>
+                                <option value="MX" {% if default_country == 'MX' %}selected{% endif %}>Mexico (MX)</option>
+                                <option value="NL" {% if default_country == 'NL' %}selected{% endif %}>Netherlands (NL)</option>
+                                <option value="PL" {% if default_country == 'PL' %}selected{% endif %}>Poland (PL)</option>
+                                <option value="RU" {% if default_country == 'RU' %}selected{% endif %}>Russia (RU)</option>
+                                <option value="SG" {% if default_country == 'SG' %}selected{% endif %}>Singapore (SG)</option>
+                                <option value="TR" {% if default_country == 'TR' %}selected{% endif %}>Turkey (TR)</option>
+                                <option value="TW" {% if default_country == 'TW' %}selected{% endif %}>Taiwan (TW)</option>
+                                <option value="UA" {% if default_country == 'UA' %}selected{% endif %}>Ukraine (UA)</option>
+                                <option value="VN" {% if default_country == 'VN' %}selected{% endif %}>Vietnam (VN)</option>
+                                <option value="ZA" {% if default_country == 'ZA' %}selected{% endif %}>South Africa (ZA)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <button type="button" class="btn-detect-region" onclick="checkVideoRegion()" id="btn-detect-region" title="Detect what country this video is available in">
+                        <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;">
+                            <path fill="currentColor" d="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 19.3,9.5L16.5,12.3L13.7,9.5L15.1,8.1L12.3,5.3L10.9,6.7L9.5,5.3L8.1,6.7L9.5,8.1L6.7,10.9L8.1,12.3L5.3,15.1L6.7,16.5L9.5,13.7L12.3,16.5A8,8 0 0,1 12,4Z"/>
+                        </svg>
+                        Detect Region
+                    </button>
+                </div>
+
+                <div class="custom-proxy-row" id="custom-proxy-row" style="{% if default_country == 'custom' or default_proxy %}display: flex;{% else %}display: none;{% endif %}">
+                    <input type="text" name="proxy" id="proxy_input" placeholder="Custom proxy: socks4://host:port or socks5://... or http://..." value="{{ default_proxy }}" autocomplete="off">
+                </div>
+
+                <div class="region-feedback-badge" id="region-feedback" style="display: none;"></div>
+            </div>
+
             <div class="actions-row">
                 <button type="submit" name="action" value="audio" class="btn-primary">
                     <svg class="icon" viewBox="0 0 24 24">
@@ -148,6 +216,27 @@
                         </div>
                     </div>
 
+                    <div class="settings-group">
+                        <label>Default Region Bypass</label>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <select name="country_val" id="country_val" class="proxy-select" onchange="const pr = document.getElementById('setting-proxy-group'); if(this.value==='custom'){pr.style.display='block';}else{pr.style.display='none';}">
+                                <option value="auto" {% if default_country == 'auto' or not default_country %}selected{% endif %}>Auto (Detect &amp; Retry Working Proxies)</option>
+                                <option value="custom" {% if default_country == 'custom' %}selected{% endif %}>Custom Proxy</option>
+                                <option value="IN" {% if default_country == 'IN' %}selected{% endif %}>India (IN)</option>
+                                <option value="US" {% if default_country == 'US' %}selected{% endif %}>United States (US)</option>
+                                <option value="GB" {% if default_country == 'GB' %}selected{% endif %}>United Kingdom (GB)</option>
+                                <option value="CA" {% if default_country == 'CA' %}selected{% endif %}>Canada (CA)</option>
+                                <option value="DE" {% if default_country == 'DE' %}selected{% endif %}>Germany (DE)</option>
+                                <option value="JP" {% if default_country == 'JP' %}selected{% endif %}>Japan (JP)</option>
+                                <option value="FR" {% if default_country == 'FR' %}selected{% endif %}>France (FR)</option>
+                                <option value="BR" {% if default_country == 'BR' %}selected{% endif %}>Brazil (BR)</option>
+                            </select>
+                            <div id="setting-proxy-group" style="{% if default_country == 'custom' or default_proxy %}display:block;{% else %}display:none;{% endif %}">
+                                <input type="text" name="proxy_val" id="proxy_val" placeholder="socks4://host:port or http://..." value="{{ default_proxy }}" style="font-size:0.85rem; padding:6px 10px; width:100%;">
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
@@ -181,6 +270,8 @@
         {% if dl_opts %}
         <form method="POST" action="{% url 'mix_av' %}" id="mix-form">
             {% csrf_token %}
+            <input type="hidden" name="proxy" value="{{ proxy|default:'' }}">
+            <input type="hidden" name="country" value="{{ country|default:'' }}">
             <div class="results-container">
                 <h3>{{ final_title }}</h3>
                 <p style="color: var(--text-muted); font-size: 12px;">({{ final_url }})</p>
@@ -211,6 +302,8 @@
                                 <td>
                                     <form method="POST" action="{% url 'dl_from_opt' %}">
                                         {% csrf_token %}
+                                        <input type="hidden" name="proxy" value="{{ proxy|default:'' }}">
+                                        <input type="hidden" name="country" value="{{ country|default:'' }}">
                                         <button type="submit" name="action"
                                             value="{{ format_id }} - {{ f.url }} - {{ f.ext }}" class="btn-primary"
                                             style="padding: 5px 10px; font-size: 0.75rem;">
@@ -247,6 +340,8 @@
                                 <td>
                                     <form method="POST" action="{% url 'dl_from_opt' %}">
                                         {% csrf_token %}
+                                        <input type="hidden" name="proxy" value="{{ proxy|default:'' }}">
+                                        <input type="hidden" name="country" value="{{ country|default:'' }}">
                                         <button type="submit" name="action"
                                             value="{{ format_id }} - {{ f.url }} - {{ f.ext }}" class="btn-primary"
                                             style="padding: 5px 10px; font-size: 0.75rem;">
@@ -297,6 +392,8 @@
                                 <td>
                                     <form method="POST" action="{% url 'dl_from_opt' %}">
                                         {% csrf_token %}
+                                        <input type="hidden" name="proxy" value="{{ proxy|default:'' }}">
+                                        <input type="hidden" name="country" value="{{ country|default:'' }}">
                                         <button type="submit" name="action"
                                             value="sub:{{ sub.lang }} - {{ sub.url }} - srt" class="btn-primary"
                                             style="padding: 5px 10px; font-size: 0.75rem;">
@@ -416,14 +513,112 @@
         });
     </script>
 
-    <!-- paste button js -->
+    <!-- paste button & region proxy js -->
     <script>
+        function toggleGeoblockOptions(enabled) {
+            const container = document.getElementById('proxy-bar-container');
+            const toggle = document.getElementById('geoblock_toggle');
+            if (toggle) toggle.checked = enabled;
+            if (container) {
+                container.style.display = enabled ? 'flex' : 'none';
+            }
+            if (enabled) {
+                const urlInput = document.getElementById('yt_link');
+                const feedback = document.getElementById('region-feedback');
+                if (urlInput && urlInput.value.trim() && (!feedback || feedback.style.display === 'none')) {
+                    checkVideoRegion();
+                }
+            } else {
+                const feedback = document.getElementById('region-feedback');
+                if (feedback) feedback.style.display = 'none';
+            }
+        }
+
         async function pasteFromClipboard() {
             try {
                 const text = await navigator.clipboard.readText();
                 document.getElementById("yt_link").value = text;
+                const feedback = document.getElementById('region-feedback');
+                if (feedback) feedback.style.display = 'none';
+
+                const toggle = document.getElementById('geoblock_toggle');
+                if (toggle && toggle.checked && text.trim()) {
+                    checkVideoRegion();
+                }
             } catch (err) {
                 console.error("Paste failed", err);
+            }
+        }
+
+        function onRegionChange(val) {
+            const proxyRow = document.getElementById('custom-proxy-row');
+            if (val === 'custom') {
+                proxyRow.style.display = 'flex';
+                const input = document.getElementById('proxy_input');
+                if (input) input.focus();
+            } else {
+                proxyRow.style.display = 'none';
+            }
+        }
+
+        async function checkVideoRegion() {
+            const urlInput = document.getElementById('yt_link');
+            const url = urlInput.value.trim();
+            const btn = document.getElementById('btn-detect-region');
+            const feedback = document.getElementById('region-feedback');
+
+            if (!url) {
+                alert('Please enter a YouTube video URL first.');
+                urlInput.focus();
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Detecting...';
+            feedback.style.display = 'none';
+            feedback.className = 'region-feedback-badge';
+
+            try {
+                const response = await fetch('/detect_region/?url=' + encodeURIComponent(url));
+                const data = await response.json();
+                
+                feedback.style.display = 'flex';
+                if (data.restricted) {
+                    toggleGeoblockOptions(true);
+                    feedback.className = 'region-feedback-badge warning';
+                    const countryList = (data.country_names && data.country_names.length) ? data.country_names.join(', ') : 'specific regions';
+                    feedback.innerHTML = `<span><strong>Geo-restricted:</strong> Available in <strong>${countryList}</strong>. Proxy bypass is ready!</span>`;
+                    
+                    if (data.countries && data.countries.length > 0) {
+                        const targetCode = data.countries[0];
+                        const countrySelect = document.getElementById('country_select');
+                        let optionFound = false;
+                        for (let i = 0; i < countrySelect.options.length; i++) {
+                            if (countrySelect.options[i].value === targetCode) {
+                                countrySelect.selectedIndex = i;
+                                optionFound = true;
+                                break;
+                            }
+                        }
+                        if (!optionFound) {
+                            const opt = document.createElement('option');
+                            opt.value = targetCode;
+                            opt.textContent = `${data.country_names[0] || targetCode} (${targetCode})`;
+                            countrySelect.appendChild(opt);
+                            countrySelect.value = targetCode;
+                        }
+                    }
+                } else {
+                    feedback.className = 'region-feedback-badge success';
+                    feedback.innerHTML = `<span>✓ <strong>Available:</strong> ${data.message || 'Accessible in your current region!'}</span>`;
+                }
+            } catch (err) {
+                feedback.style.display = 'flex';
+                feedback.className = 'region-feedback-badge error';
+                feedback.innerHTML = `<span>Failed to detect region: ${err.message || 'Connection error'}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;"><path fill="currentColor" d="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 19.3,9.5L16.5,12.3L13.7,9.5L15.1,8.1L12.3,5.3L10.9,6.7L9.5,5.3L8.1,6.7L9.5,8.1L6.7,10.9L8.1,12.3L5.3,15.1L6.7,16.5L9.5,13.7L12.3,16.5A8,8 0 0,1 12,4Z"/></svg> Detect Region`;
             }
         }
     </script>
@@ -541,6 +736,34 @@
                 formData.set('action', submitter.value);
             }
 
+            // Handle proxy & geoblock options
+            const geoblockToggle = document.getElementById('geoblock_toggle');
+            if (form.id === 'main-download-form') {
+                if (!geoblockToggle || !geoblockToggle.checked) {
+                    formData.delete('country');
+                    formData.delete('proxy');
+                    formData.delete('enable_geoblock');
+                } else {
+                    formData.set('enable_geoblock', 'on');
+                    if (!formData.has('country') || !formData.get('country')) {
+                        const cSelect = document.getElementById('country_select');
+                        if (cSelect && cSelect.value) {
+                            formData.set('country', cSelect.value);
+                        }
+                    }
+                    if (!formData.has('proxy') || !formData.get('proxy')) {
+                        const pInput = document.getElementById('proxy_input');
+                        if (pInput && pInput.value) {
+                            formData.set('proxy', pInput.value);
+                        }
+                    }
+                }
+            } else {
+                if (formData.get('proxy') || formData.get('country')) {
+                    formData.set('enable_geoblock', 'on');
+                }
+            }
+
             // Show progress container
             const container = document.getElementById('dl-progress-container');
             const bar = document.getElementById('dl-bar');
@@ -630,9 +853,24 @@
                         clearInterval(pollInterval);
                         pollInterval = null;
                         document.getElementById('cancel-dl-btn').style.display = 'none';
-                        alert('Download failed: ' + (data.error || 'Unknown error'));
                         document.getElementById('dl-progress-container').classList.remove('active');
                         document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+
+                        const errMsg = data.error || 'Unknown error';
+                        const lowerErr = errMsg.toLowerCase();
+                        const isGeoBlocked = lowerErr.includes('not available in your country') ||
+                                             lowerErr.includes('geo-restricted') ||
+                                             lowerErr.includes('geoblock') ||
+                                             lowerErr.includes('country') ||
+                                             lowerErr.includes('proxy');
+
+                        if (isGeoBlocked) {
+                            toggleGeoblockOptions(true);
+                            checkVideoRegion();
+                            alert('Geo-restriction detected: This video is blocked in your region.\nProxy bypass options have been enabled below. You can retry with an available region or custom proxy.');
+                        } else {
+                            alert('Download failed: ' + errMsg);
+                        }
                     }
                 } catch (err) {
                     console.error('Polling error', err);
@@ -642,6 +880,18 @@
 
         // Intercept all download forms
         document.addEventListener('DOMContentLoaded', () => {
+            // Check for any geo-block error messages rendered on page load
+            const alertSpans = document.querySelectorAll('.alert span');
+            alertSpans.forEach(span => {
+                const text = span.textContent.toLowerCase();
+                if (text.includes('not available in your country') || text.includes('geo-restricted') || text.includes('country') || text.includes('proxy')) {
+                    toggleGeoblockOptions(true);
+                    const urlInput = document.getElementById('yt_link');
+                    if (urlInput && urlInput.value.trim()) {
+                        checkVideoRegion();
+                    }
+                }
+            });
             const mainForm = document.getElementById('main-download-form');
             if (mainForm) {
                 mainForm.addEventListener('submit', (e) => {

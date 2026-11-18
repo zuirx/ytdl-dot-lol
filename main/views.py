@@ -17,6 +17,11 @@ from .tasks import (
     _age_restricted_error,
     _format_not_available_error,
 )
+from .proxy_manager import (
+    detect_video_country,
+    get_proxies_for_country,
+    get_country_name,
+)
 
 from django.core.cache import cache
 from django.conf import settings
@@ -254,8 +259,11 @@ def home_yt(request, subpath=''):
     except: pass
 
     if request.method == 'POST':
-        url    = request.POST.get("yt_link")
-        action = request.POST.get("action")
+        url     = request.POST.get("yt_link")
+        action  = request.POST.get("action")
+        enable_geoblock = request.POST.get("enable_geoblock")
+        proxy   = request.POST.get("proxy", "").strip() if enable_geoblock else ""
+        country = request.POST.get("country", "").strip() if enable_geoblock else ""
 
         if not url and action != 'setting-save':
             report_error(request, 'No link provided.')
@@ -276,7 +284,7 @@ def home_yt(request, subpath=''):
         match action:
             case 'info':
                 try:
-                    info = _extract_with_cookie_fallback(url, {'quiet': True}, download=False)
+                    info = _extract_with_cookie_fallback(url, {'quiet': True}, download=False, proxy=proxy, country=country)
 
                     formats_dict = {'video': {}, 'audio': {}, 'subtitles': []}
 
@@ -329,27 +337,31 @@ def home_yt(request, subpath=''):
                         return redirect('home_yt')
 
                     return render(request, 'main/home.html', {
-                        'dl_opts':   formats_dict,
-                        'final_url': url,
-                        'final_title': title
+                        'dl_opts':     formats_dict,
+                        'final_url':   url,
+                        'final_title': title,
+                        'proxy':       proxy,
+                        'country':     country,
                     })
 
                 except Exception as e:
                     report_error(request, f"Error: {e}")
                     return redirect('home_yt')
             case 'video':
-                return download_yt(request, subpath=url, type='video')
+                return download_yt(request, subpath=url, type='video', proxy=proxy, country=country)
             case 'audio':
-                return download_yt(request, subpath=url, type='audio')
+                return download_yt(request, subpath=url, type='audio', proxy=proxy, country=country)
             case 'transcript':
-                return download_yt(request, subpath=url, type='transcript')
+                return download_yt(request, subpath=url, type='transcript', proxy=proxy, country=country)
             case 'playlist':
                 listvid = retrieve_playlist_yt(request, subpath=url)
             case 'setting-save':
-                theme_val = request.POST.get('theme_val')
-                lang_val  = request.POST.get('lang_val')
-                v_qual    = request.POST.get('video_quality')
-                a_qual    = request.POST.get('audio_quality')
+                theme_val   = request.POST.get('theme_val')
+                lang_val    = request.POST.get('lang_val')
+                v_qual      = request.POST.get('video_quality')
+                a_qual      = request.POST.get('audio_quality')
+                proxy_val   = request.POST.get('proxy_val')
+                country_val = request.POST.get('country_val')
                 
                 response = redirect('home_yt')
                 if theme_val is not None:
@@ -360,6 +372,10 @@ def home_yt(request, subpath=''):
                     response.set_cookie('video_quality', v_qual, expires=timezone.now() + timedelta(days=365))
                 if a_qual:
                     response.set_cookie('audio_quality', a_qual, expires=timezone.now() + timedelta(days=365))
+                if proxy_val is not None:
+                    response.set_cookie('default_proxy', proxy_val, expires=timezone.now() + timedelta(days=365))
+                if country_val is not None:
+                    response.set_cookie('default_country', country_val, expires=timezone.now() + timedelta(days=365))
                 
                 messages.success(request, 'Settings saved successfully.')
                 return response
@@ -373,18 +389,22 @@ def home_yt(request, subpath=''):
     warning = site_setting.warning_text if site_setting and site_setting.warning_text else ""
 
     return render(request, 'main/home.html', {
-        'theme':     request.COOKIES.get('theme'),
-        'ytdlpver':  ytdlpver,
-        'lastup':    lastup,
-        'lastuptxt': lastuptxt,
-        'lastuptdy': lastuptdy,
-        'listvid':   listvid,
-        'warning': warning,
+        'theme':           request.COOKIES.get('theme'),
+        'default_proxy':   request.COOKIES.get('default_proxy', ''),
+        'default_country': request.COOKIES.get('default_country', 'auto'),
+        'ytdlpver':        ytdlpver,
+        'lastup':          lastup,
+        'lastuptxt':       lastuptxt,
+        'lastuptdy':       lastuptdy,
+        'listvid':         listvid,
+        'warning':         warning,
     })
 
 
 def dl_from_opt(request):
     action   = request.POST.get("action")
+    proxy    = request.POST.get("proxy", "").strip()
+    country  = request.POST.get("country", "").strip()
     parts    = action.split(' - ')
     itag     = parts[0]
     url      = parts[1]
@@ -399,9 +419,9 @@ def dl_from_opt(request):
         return limit
 
     if itag.startswith('sub:'):
-        return download_yt(request, subpath=url, type='subtitle', itag=itag[4:], typeitag='srt')
+        return download_yt(request, subpath=url, type='subtitle', itag=itag[4:], typeitag='srt', proxy=proxy, country=country)
 
-    return download_yt(request, subpath=url, itag=itag, typeitag=typeitag)
+    return download_yt(request, subpath=url, itag=itag, typeitag=typeitag, proxy=proxy, country=country)
 
 
 def get_last_update_github():
@@ -412,7 +432,7 @@ def get_last_update_github():
             return commits[0]['commit']['committer']['date'], commits[0]['commit']['message']
 
 
-def download_yt(request, subpath='', video_id='', noreturn=False, middle='', type='video', itag=0, typeitag='', quality='best', custom_output_dir='', filename=''):
+def download_yt(request, subpath='', video_id='', noreturn=False, middle='', type='video', itag=0, typeitag='', quality='best', custom_output_dir='', filename='', proxy='', country=''):
     url        = subpath + middle + video_id
     output_dir = custom_output_dir or DIR_DOWNLOAD
 
@@ -493,7 +513,7 @@ def download_yt(request, subpath='', video_id='', noreturn=False, middle='', typ
                 })
 
     try:
-        info = _extract_with_cookie_fallback(url, ydl_opts, download=True)
+        info = _extract_with_cookie_fallback(url, ydl_opts, download=True, proxy=proxy, country=country)
 
         if type in ('transcript', 'subtitle'):
             subtitle_exts = ('srt', 'vtt', 'ttml', 'srv3', 'srv2', 'srv1', 'json3')
@@ -710,6 +730,9 @@ def initiate_download(request):
     download_type = request.POST.get("download_type", 'audio')
     v_quality = request.POST.get('video_quality', 'best')
     a_quality = request.POST.get('audio_quality', 'best')
+    enable_geoblock = request.POST.get('enable_geoblock')
+    proxy = request.POST.get('proxy', '').strip() if enable_geoblock else ""
+    country = request.POST.get('country', '').strip() if enable_geoblock else ""
 
     # If everything is okay, increment the count in cache
     cache.set(cache_key, dl_count + 1, 3600) # 1 hour timeout
@@ -742,7 +765,7 @@ def initiate_download(request):
                 return limit
 
         q = v_quality if download_type == 'video' else a_quality
-        task = download_playlist_task.delay(list_vids, download_type=download_type, quality=q)
+        task = download_playlist_task.delay(list_vids, download_type=download_type, quality=q, proxy=proxy, country=country)
         return JsonResponse({'task_id': task.id})
 
     itag = 0
@@ -774,7 +797,7 @@ def initiate_download(request):
         return limit
 
     q = v_quality if type == 'video' else a_quality
-    task = download_video_task.delay(url, type=type, itag=itag, typeitag=typeitag, quality=q)
+    task = download_video_task.delay(url, type=type, itag=itag, typeitag=typeitag, quality=q, proxy=proxy, country=country)
     return JsonResponse({'task_id': task.id})
 
 
@@ -831,4 +854,26 @@ def health(request):
     response = HttpResponse("OK", content_type="text/plain")
     response["Access-Control-Allow-Origin"] = "*"
     return response
+
+
+def detect_region_view(request):
+    url = request.GET.get('url') or request.POST.get('url', '')
+    if not url:
+        return JsonResponse({'error': 'No URL provided'}, status=400)
+    data = detect_video_country(url)
+    return JsonResponse(data)
+
+
+def get_proxies_view(request):
+    country = request.GET.get('country', '').strip()
+    if not country:
+        return JsonResponse({'error': 'No country provided'}, status=400)
+    proxies = get_proxies_for_country(country, max_proxies=25)
+    return JsonResponse({
+        'country': country.upper(),
+        'country_name': get_country_name(country),
+        'count': len(proxies),
+        'proxies': proxies
+    })
+
 

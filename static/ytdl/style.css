@@ -206,6 +206,216 @@ input[type="text"]:focus {
     gap: 10px;
 }
 
+/* Geoblock Option Toggle */
+.geoblock-toggle-row {
+    margin-top: -6px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+}
+
+.geoblock-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.geoblock-checkbox-label:hover {
+    color: var(--text-main);
+}
+
+.geoblock-checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+}
+
+/* Proxy / Region Bypass */
+.proxy-bar-container {
+    background: var(--trans-bg);
+    border: 1px solid var(--border);
+    padding: 12px 14px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-sizing: border-box;
+    transition: all 0.2s ease-in-out;
+}
+
+.proxy-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.proxy-field-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 250px;
+}
+
+.proxy-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.proxy-select {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    box-sizing: border-box;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 0 32px 0 12px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+body.light-theme .proxy-select {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+.proxy-select:hover {
+    border-color: var(--text-muted);
+}
+
+.proxy-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.2);
+}
+
+.proxy-select option {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    padding: 8px 12px;
+}
+
+.proxy-select optgroup {
+    background-color: var(--bg-card);
+    color: var(--accent);
+    font-weight: 700;
+    font-style: normal;
+    padding: 6px 0;
+}
+
+.btn-detect-region {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0 12px;
+    height: 36px;
+    box-sizing: border-box;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.btn-detect-region:hover {
+    background: var(--accent);
+    color: #000;
+}
+
+@media (max-width: 520px) {
+    .proxy-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .proxy-field-group {
+        width: 100%;
+        min-width: 0;
+    }
+    .btn-detect-region {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+.custom-proxy-row {
+    display: flex;
+    gap: 8px;
+}
+
+.custom-proxy-row input {
+    width: 100%;
+    height: 36px;
+    box-sizing: border-box;
+    font-size: 0.85rem;
+    padding: 0 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.custom-proxy-row input:focus {
+    border-color: var(--accent);
+}
+
+.region-feedback-badge {
+    font-size: 0.82rem;
+    padding: 6px 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.region-feedback-badge.success {
+    background: rgba(76, 175, 80, 0.15);
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.region-feedback-badge.warning {
+    background: rgba(250, 204, 21, 0.15);
+    color: var(--accent-text);
+    border: 1px solid rgba(250, 204, 21, 0.3);
+}
+
+.region-feedback-badge.error {
+    background: rgba(255, 95, 95, 0.15);
+    color: var(--danger);
+    border: 1px solid rgba(255, 95, 95, 0.3);
+}
+
 button {
     font-family: var(--font-stack);
     font-weight: 600;

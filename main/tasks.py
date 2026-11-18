@@ -9,6 +9,11 @@ from celery import shared_task
 from django.conf import settings
 import time
 
+from .proxy_manager import (
+    is_geo_restricted_error,
+    extract_or_download_with_proxy_retry,
+)
+
 logger = logging.getLogger(__name__)
 
 COOKIES_PATH = os.path.abspath(os.path.join(settings.BASE_DIR, 'cookie.txt'))
@@ -46,18 +51,30 @@ def _format_not_available_error(exc):
     msg = str(exc).lower()
     return 'requested format is not available' in msg
 
-def _extract_with_cookie_fallback(url, opts, download=False):
-    """Run yt-dlp via Python library with YouTube defaults + cookies.
+def _extract_with_cookie_fallback(url, opts, download=False, proxy=None, country=None, progress_callback=None):
+    """Run yt-dlp via Python library with YouTube defaults + cookies + proxy retry.
 
     Tries strategies in order:
       1) Merged opts (YTDL_OPTS + caller opts) – uses browser cookies by default.
       2) cookie.txt file if present and non-empty.
       3) Force browser cookies for age-restricted videos when cookiefile fails.
+      4) Regional proxy cycling if geo-restricted or proxy/country requested.
     """
     if _is_youtube(url):
         merged = YTDL_OPTS.copy()
         merged.update(opts)
         opts = merged
+
+    if proxy or country:
+        logger.info('Proxy or country specified (%s, %s) for %s. Using regional proxy manager...', proxy, country, url)
+        return extract_or_download_with_proxy_retry(
+            url,
+            opts,
+            download=download,
+            target_country=country,
+            custom_proxy=proxy,
+            progress_callback=progress_callback
+        )
 
     tried_cookiefile = False
     tried_browser = bool(opts.get('cookiesfrombrowser'))
@@ -95,6 +112,21 @@ def _extract_with_cookie_fallback(url, opts, download=False):
                     return ydl.extract_info(url, download=download)
             except yt_dlp.utils.DownloadError as exc3:
                 last_exc = exc3
+
+        # ---- Strategy 4: Geo-restriction / regional proxy retry ----
+        if is_geo_restricted_error(last_exc) or country or proxy:
+            logger.warning('Geo-restriction detected or proxy specified for %s. Attempting regional proxy retry...', url)
+            try:
+                return extract_or_download_with_proxy_retry(
+                    url,
+                    opts,
+                    download=download,
+                    target_country=country,
+                    custom_proxy=proxy,
+                    progress_callback=progress_callback
+                )
+            except Exception as proxy_exc:
+                last_exc = proxy_exc
 
         raise last_exc
 
@@ -231,7 +263,7 @@ def _download_reddit_best_video(url, output_dir, video_id):
     return final_path
 
 @shared_task(bind=True)
-def download_playlist_task(self, video_urls, download_type='audio', quality='best', output_dir='content-playlist'):
+def download_playlist_task(self, video_urls, download_type='audio', quality='best', output_dir='content-playlist', proxy='', country=''):
     os.makedirs(output_dir, exist_ok=True)
     task_id = self.request.id
     pl_temp_dir = os.path.join(output_dir, task_id)
@@ -239,6 +271,12 @@ def download_playlist_task(self, video_urls, download_type='audio', quality='bes
     
     total_vids = len(video_urls)
     
+    def proxy_callback(status_msg, current, total):
+        self.update_state(state='PROGRESS', meta={
+            'percent': 5,
+            'status': status_msg
+        })
+
     if download_type == 'audio':
         params = {
             'format':  get_format_for_quality('audio', quality),
@@ -269,13 +307,13 @@ def download_playlist_task(self, video_urls, download_type='audio', quality='bes
 
         try:
             # Check duration before download (retries with cookies on age restriction)
-            info = _extract_with_cookie_fallback(v_url, params, download=False)
+            info = _extract_with_cookie_fallback(v_url, params, download=False, proxy=proxy, country=country, progress_callback=proxy_callback)
             duration = info.get('duration', 0)
             if duration > settings.MAX_VIDEO_DURATION:
                 logger.warning(f"Skipping video {v_url} because it exceeds duration limit.")
                 continue
             # Download with same fallback logic (cookies + CLI for age-restricted YouTube)
-            _extract_with_cookie_fallback(v_url, params, download=True)
+            _extract_with_cookie_fallback(v_url, params, download=True, proxy=proxy, country=country, progress_callback=proxy_callback)
         except Exception as e:
             logger.error(f"Failed to download {v_url}: {e}")
 
@@ -298,12 +336,18 @@ def download_playlist_task(self, video_urls, download_type='audio', quality='bes
     }
 
 @shared_task(bind=True)
-def download_video_task(self, url, type='video', itag=0, typeitag='', quality='best', output_dir='content-downloads'):
+def download_video_task(self, url, type='video', itag=0, typeitag='', quality='best', output_dir='content-downloads', proxy='', country=''):
     
     os.makedirs(output_dir, exist_ok=True)
     
     video_id = 'dl_' + self.request.id
     reddit_best = 'reddit.com' in url and type == 'video' and quality == 'best' and not itag
+
+    def proxy_callback(status_msg, current, total):
+        self.update_state(state='PROGRESS', meta={
+            'percent': 5,
+            'status': status_msg
+        })
 
     if reddit_best:
         dl_format = 'bestvideo+bestaudio/best'
@@ -375,7 +419,7 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
     # Pre-check duration
     title = video_id
     try:
-        info = _extract_with_cookie_fallback(url, {'quiet': True}, download=False)
+        info = _extract_with_cookie_fallback(url, {'quiet': True}, download=False, proxy=proxy, country=country, progress_callback=proxy_callback)
         duration = info.get('duration', 0)
         if duration > settings.MAX_VIDEO_DURATION:
             raise ValueError(f"Video is too long ({round(duration/3600, 1)}h). Max limit is {int(settings.MAX_VIDEO_DURATION/3600)}h.")
@@ -417,7 +461,7 @@ def download_video_task(self, url, type='video', itag=0, typeitag='', quality='b
 
     try:
         try:
-            info = _extract_with_cookie_fallback(url, ydl_opts, download=True)
+            info = _extract_with_cookie_fallback(url, ydl_opts, download=True, proxy=proxy, country=country, progress_callback=proxy_callback)
         except yt_dlp.utils.DownloadError as e:
             if 'Conversion failed!' in str(e) or 'Preprocessing:' in str(e):
                 logger.warning("Thumbnail conversion failed. Retrying without thumbnails...")

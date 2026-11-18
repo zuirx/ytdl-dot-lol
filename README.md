@@ -6,6 +6,21 @@ This project is still in development.
 
 You can see it working at: https://ytdl.lol
 
+---
+
+## Features
+
+- **Multi-Platform Support**: Download video and audio streams from YouTube, Reddit, and hundreds of other sites supported by `yt-dlp`.
+- **Async Task Queue**: Celery & Redis pipeline with real-time progress percentage, status updates, and download cancellation.
+- **Format Inspection & Mixing**: Pull available video/audio formats and manually mix selected streams with FFmpeg.
+- **Regional Proxy Bypass**: Automatic detection of geo-restricted YouTube videos and automatic proxy cycling (SOCKS4/SOCKS5) using GeoIP-located proxies.
+- **Age-Restriction & Bot Bypass**: Seamless Chrome cookie extraction and Node.js 22+ challenge solving for protected videos.
+- **Admin Analytics Dashboard**: Track monthly unique visitors (IPs), page views, completed downloads, client devices/browsers, and top requested URLs.
+- **Site Administration**: Set custom homepage warning notices and whitelist specific IPs from download limits.
+- **Themes & Presets**: Dark and Light themes with persistent video/audio quality preferences.
+
+---
+
 ## Requirements
 
 - **Python**: 3.11+
@@ -145,6 +160,22 @@ No extra configuration is needed if Chrome and Node.js are properly installed.
 
 ---
 
+## Regional Proxy Bypass (Geo-restriction)
+
+The application includes an automated regional proxy system to bypass YouTube geo-restrictions:
+
+1. **Country Detection**: The `/detect_region/?url=...` endpoint inspects restricted videos to find which regions they are allowed in.
+2. **Aggregated Proxies**: Working proxies are fetched dynamically from multiple sources (Monosans, ProxyScrape, Geonode, TheSpeedX, Hookzof) and localized using `GeoLite2-City.mmdb`.
+3. **Health Checking**: Live SOCKS4, SOCKS5, and HTTP proxies undergo fast concurrent TCP handshakes before being selected.
+4. **Proxy Retry Cycle**: Celery worker retries downloads across tested regional proxies until the geo-restriction is successfully bypassed.
+5. **Conditional UI Toggle**:
+   - The proxy panel stays hidden by default for a clean interface.
+   - Users can check *"This video may be blocked in my region"* to reveal region selection and custom proxy options.
+   - If a download fails with a geo-block error, the UI automatically enables the bypass panel and triggers region detection.
+   - Users can save preferred default bypass regions or custom proxies in the **Settings** panel.
+
+---
+
 ## Running
 
 You need to run three separate processes:
@@ -172,31 +203,72 @@ To ensure site stability and avoid abuse, the following limits are enforced:
 
 | Limit | Value | Scope |
 |-------|-------|-------|
-| **YouTube Daily Links** | 5 links per 24h per IP | YouTube URLs only |
-| **Downloads per Hour** | 5 per IP | All platforms |
-| **Video Duration** | 2 hours maximum | Per video |
-| **Auto-Cleanup** | 1 hour after download | All downloaded files |
-| **Large-File Cleanup** | >500MB removed after 30 min | All files |
-| **Total Storage Cap** | ~100GB | Entire server |
+| **YouTube Daily Links** | 15 links per 24h per IP | YouTube URLs only (`YOUTUBE_DAILY_LIMIT` in settings) |
+| **Downloads per Hour** | 5 downloads per IP | All platforms (rolling 1-hour cache window) |
+| **Video Duration** | 2 hours maximum (7200s) | Per video (`MAX_VIDEO_DURATION` in settings) |
+| **Periodic Content Cleanup** | Files older than 10 mins removed | Download, mix, and playlist directories (runs every 5 mins via Celery Beat) |
+| **File Deletion Fallback** | 1 hour after download | In-memory cleanup loop |
+| **Total Storage Cap** | ~100GB | Entire server storage (oldest files purged first if exceeded) |
+| **IP Exemptions** | Configurable via Admin | Exclude specific IPs from YouTube daily and hourly rate limits |
 
 ### Why the YouTube daily limit?
-YouTube aggressively rate-limits and can block IPs that perform too many extractions. The 5-links-per-day cap protects your server's IP reputation and keeps the service alive for everyone.
+YouTube aggressively rate-limits and can block IPs that perform too many extractions. The 15-links-per-day cap protects your server's IP reputation and keeps the service alive for everyone.
 
-> **Note:** The daily limit is reset every 24 hours per IP. Other platforms (Reddit, etc.) are **not** affected by this limit.
+> **Note:** The daily limit is reset every 24 hours per IP. Other platforms (Reddit, etc.) are **not** affected by this YouTube daily limit. Specific IPs can be exempted in Django Admin under **Site Settings** (`youtube_limit_exception_ips`).
+
+---
+
+## Admin Analytics Dashboard
+
+A built-in analytics dashboard is available in Django Admin at `/admin/main/analyticsdashboard/`:
+
+- **Monthly Performance**: Unique visitors (IPs), total page views, and completed downloads.
+- **Top Visited Pages**: Most accessed URLs and referrers.
+- **Top Visitors**: Request volume by client IP.
+- **Device & Browser Breakdown**: Client breakdown across Desktop, Mobile/Tablet, and Bots.
 
 ---
 
 ## Run locally on Windows
 
-```bash
-python .\runserver-dev.py
+### Option 1: One-Click Development Runner (Recommended)
+
+Start Redis (in WSL Debian/Ubuntu), Django dev server, Celery Beat, and Celery Worker together:
+
+```cmd
+.\start-dev.bat
 ```
-```bash
-python -m celery -A ytdl beat -l info
+
+*Or using PowerShell:*
+```powershell
+.\start-dev.ps1
 ```
+
+*Or using Python:*
 ```bash
-python -m celery -A ytdl worker --pool=solo
+python .\start-dev.py
 ```
+
+### Option 2: Manual Multi-Process Setup
+
+If running each service in a separate terminal:
+
+1. **Redis in WSL**:
+   ```bash
+   wsl -d debian redis-server
+   ```
+2. **Django Web Server**:
+   ```bash
+   python .\runserver-dev.py
+   ```
+3. **Celery Beat**:
+   ```bash
+   python -m celery -A ytdl beat -l info
+   ```
+4. **Celery Worker**:
+   ```bash
+   python -m celery -A ytdl worker --pool=solo
+   ```
 
 ---
 
